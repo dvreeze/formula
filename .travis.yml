@@ -1,0 +1,22 @@
+
+language: scala
+
+install:
+  - . $HOME/.nvm/nvm.sh
+  - nvm install stable
+  - nvm use stable
+  - npm install
+  - npm install jsdom
+
+matrix:
+  include:
+  - jdk: oraclejdk9
+    scala: 2.12.6
+  - jdk: oraclejdk8
+    scala: 2.12.6
+  - jdk: oraclejdk8
+    scala: 2.11.12
+
+script:
+ - sbt ++$TRAVIS_SCALA_VERSION -J-Xmx3G test
+
