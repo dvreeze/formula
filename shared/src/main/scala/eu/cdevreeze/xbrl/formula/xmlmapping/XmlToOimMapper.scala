@@ -67,7 +67,7 @@ import eu.cdevreeze.xbrl.formula.oim.ZonedTimeInterval
 final class XmlToOimMapper(dts: TaxonomyApi) {
 
   /**
-   * Converts an XBRL instance in XML format to an OIM report. The entrypoint in the instance must
+   * Converts an XBRL instance in XML format to an OIM report. The entrypoint(s) in the instance must
    * occur in the DTS, or else an exception is thrown.
    */
   def convertXbrlInstance(xbrlInstance: instance.XbrlInstance): Report = {
@@ -75,6 +75,14 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
     val linkbaseRefs = xbrlInstance.findAllLinkbaseRefs.map(e => convertLinkbaseRef(e))
     val roleRefs = xbrlInstance.findAllRoleRefs.map(e => convertRoleRef(e))
     val arcroleRefs = xbrlInstance.findAllArcroleRefs.map(e => convertArcroleRef(e))
+
+    require(
+      schemaRefs.map(_.href).toSet.subsetOf(dts.taxonomyDocs.map(_.uri).toSet),
+      s"Not all schemaRefs found in the DTS")
+
+    require(
+      linkbaseRefs.map(_.href).toSet.subsetOf(dts.taxonomyDocs.map(_.uri).toSet),
+      s"Not all linkbaseRefs found in the DTS")
 
     val dtsReferences = schemaRefs ++ linkbaseRefs ++ roleRefs ++ arcroleRefs
 
@@ -151,7 +159,7 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
     val conceptAspectValue = extractConceptAspectValueFromFact(fact)
     val tupleParentAspectValue = extractTupleParentAspectValueFromFact(fact)
     val tupleOrderAspectValue = extractTupleOrderAspectValueFromFact(fact)
-    val languageAspectValue = extractLanguageAspectValueFromItemFact(fact)
+    val languageAspectValue = LanguageAspectValue(None)
 
     val aspectValues =
       Set[AspectValue](

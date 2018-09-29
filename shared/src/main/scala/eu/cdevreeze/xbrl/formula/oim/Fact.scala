@@ -18,6 +18,9 @@ package eu.cdevreeze.xbrl.formula.oim
 
 import scala.collection.immutable
 
+import eu.cdevreeze.yaidom.core.EName
+import eu.cdevreeze.yaidom.core.Path
+
 /**
  * Fact, so either a simple fact or a tuple fact.
  *
@@ -32,6 +35,12 @@ sealed trait Fact {
    * must be applicable to the kind of fact.
    */
   def aspectValues: Set[AspectValue]
+
+  final def conceptName: EName = {
+    aspectValues.collectFirst { case cv: ConceptAspectValue => cv }
+      .headOption.getOrElse(sys.error(s"Missing concept aspect in fact with ID ${idOption.getOrElse("")}"))
+      .conceptName
+  }
 
   // TODO Footnotes
 }
@@ -54,9 +63,42 @@ final case class NumericSimpleFact(
 
 /**
  * Tuple fact. The child facts are contained in this tuple fact, so the tuple parent and tuple order aspects "work",
- * given the report as starting point.
+ * given the report (or this tuple) as starting point.
  */
 final case class TupleFact(
   idOption: Option[String],
   aspectValues: Set[AspectValue],
-  childFacts: immutable.IndexedSeq[Fact]) extends Fact
+  childFacts: immutable.IndexedSeq[Fact]) extends Fact {
+
+  /**
+   * Finds the (optional) fact within the parent tuple at the given relative path (this tuple itself if
+   * the path is empty), and the given zero-based fact order within that parent tuple.
+   */
+  def findDescendantFact(relativePath: Path, orderInParentTuple: Int): Option[Fact] = {
+    if (relativePath.isEmpty) {
+      val childFactCount = childFacts.size
+
+      if (orderInParentTuple >= 0 && orderInParentTuple < childFactCount) {
+        Some(childFacts(orderInParentTuple))
+      } else {
+        None
+      }
+    } else {
+      val firstPathEntry = relativePath.firstEntry
+      val childFactName = firstPathEntry.elementName
+      val childFactOption =
+        childFacts.filter(_.conceptName == childFactName).drop(firstPathEntry.index).headOption
+      val childTupleOption = childFactOption.collect { case f: TupleFact => f }
+
+      // Recursive call
+
+      childTupleOption.flatMap(_.findDescendantFact(relativePath.withoutFirstEntry, orderInParentTuple))
+    }
+  }
+
+  def getDescendantFact(relativePath: Path, orderInParentTuple: Int): Fact = {
+    findDescendantFact(relativePath, orderInParentTuple).getOrElse {
+      sys.error(s"No fact found at path $relativePath and 0-based order in parent $orderInParentTuple")
+    }
+  }
+}
