@@ -119,12 +119,12 @@ final case class ExplicitDimensionAspectValue(
   aspect: ExplicitDimensionAspect,
   member: EName) extends DimensionAspectValue {
 
-  type AspectType <: ExplicitDimensionAspect
+  type AspectType = ExplicitDimensionAspect
 }
 
 final case class TypedDimensionAspectValue(
   aspect: TypedDimensionAspect,
   member: TypedDimensionMember) extends DimensionAspectValue {
 
-  type AspectType <: TypedDimensionAspect
+  type AspectType = TypedDimensionAspect
 }

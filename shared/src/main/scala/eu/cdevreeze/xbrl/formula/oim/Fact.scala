@@ -25,7 +25,7 @@ import scala.collection.immutable
  */
 sealed trait Fact {
 
-  def id: String
+  def idOption: Option[String]
 
   /**
    * The aspect values of this fact. No aspect values in this set may have the same aspect. The aspects
@@ -41,9 +41,14 @@ sealed trait SimpleFact extends Fact {
   def factValue: SimpleFactValue
 }
 
-final case class NonNumericSimpleFact(factValue: SimpleFactValue) extends SimpleFact
+final case class NonNumericSimpleFact(
+  idOption: Option[String],
+  aspectValues: Set[AspectValue],
+  factValue: SimpleFactValue) extends SimpleFact
 
 final case class NumericSimpleFact(
+  idOption: Option[String],
+  aspectValues: Set[AspectValue],
   factValue: SimpleFactValue,
   accuracy: Accuracy) extends SimpleFact
 
@@ -51,4 +56,7 @@ final case class NumericSimpleFact(
  * Tuple fact. The child facts are contained in this tuple fact, so the tuple parent aspects "work",
  * given the report as starting point.
  */
-final case class TupleFact(childFacts: immutable.IndexedSeq[Fact]) extends Fact
+final case class TupleFact(
+  idOption: Option[String],
+  aspectValues: Set[AspectValue],
+  childFacts: immutable.IndexedSeq[Fact]) extends Fact
