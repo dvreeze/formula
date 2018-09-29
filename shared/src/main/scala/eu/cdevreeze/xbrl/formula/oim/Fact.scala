@@ -53,7 +53,7 @@ final case class NumericSimpleFact(
   accuracy: Accuracy) extends SimpleFact
 
 /**
- * Tuple fact. The child facts are contained in this tuple fact, so the tuple parent aspects "work",
+ * Tuple fact. The child facts are contained in this tuple fact, so the tuple parent and tuple order aspects "work",
  * given the report as starting point.
  */
 final case class TupleFact(
