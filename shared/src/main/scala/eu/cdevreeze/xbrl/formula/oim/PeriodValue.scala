@@ -16,6 +16,7 @@
 
 package eu.cdevreeze.xbrl.formula.oim
 
+import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 
@@ -33,3 +34,25 @@ sealed trait TimeInterval extends PeriodValue
 final case class LocalTimeInterval(start: LocalDateTime, end: LocalDateTime) extends TimeInterval
 
 final case class ZonedTimeInterval(start: ZonedDateTime, end: ZonedDateTime) extends TimeInterval
+
+object LocalTimeInterval {
+
+  def apply(instant: LocalDateTime): LocalTimeInterval = {
+    LocalTimeInterval(instant, instant)
+  }
+
+  def fromLocalDate(instant: LocalDate): LocalTimeInterval = {
+    apply(instant.atStartOfDay().plusDays(1))
+  }
+
+  def fromLocalDates(start: LocalDate, end: LocalDate): LocalTimeInterval = {
+    LocalTimeInterval(start.atStartOfDay(), end.atStartOfDay().plusDays(1))
+  }
+}
+
+object ZonedTimeInterval {
+
+  def apply(instant: ZonedDateTime): ZonedTimeInterval = {
+    ZonedTimeInterval(instant, instant)
+  }
+}

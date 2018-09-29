@@ -37,9 +37,22 @@ sealed trait Fact {
   def aspectValues: Set[AspectValue]
 
   final def conceptName: EName = {
-    aspectValues.collectFirst { case cv: ConceptAspectValue => cv }
+    conceptAspectValue.conceptName
+  }
+
+  final def conceptAspectValue: ConceptAspectValue = {
+    aspectValues.collect { case av: ConceptAspectValue => av }
       .headOption.getOrElse(sys.error(s"Missing concept aspect in fact with ID ${idOption.getOrElse("")}"))
-      .conceptName
+  }
+
+  final def tupleParentAspectValue: TupleParentAspectValue = {
+    aspectValues.collect { case av: TupleParentAspectValue => av }
+      .headOption.getOrElse(sys.error(s"Missing tuple parent aspect in fact with ID ${idOption.getOrElse("")}"))
+  }
+
+  final def tupleOrderAspectValue: TupleOrderAspectValue = {
+    aspectValues.collect { case av: TupleOrderAspectValue => av }
+      .headOption.getOrElse(sys.error(s"Missing tuple order aspect in fact with ID ${idOption.getOrElse("")}"))
   }
 
   // TODO Footnotes
@@ -48,6 +61,33 @@ sealed trait Fact {
 sealed trait SimpleFact extends Fact {
 
   def factValue: SimpleFactValue
+
+  final def entityAspectValue: EntityAspectValue = {
+    aspectValues.collect { case av: EntityAspectValue => av }
+      .headOption.getOrElse(sys.error(s"Missing entity aspect in fact with ID ${idOption.getOrElse("")}"))
+  }
+
+  final def periodAspectValue: PeriodAspectValue = {
+    aspectValues.collect { case av: PeriodAspectValue => av }
+      .headOption.getOrElse(sys.error(s"Missing period aspect in fact with ID ${idOption.getOrElse("")}"))
+  }
+
+  final def languageAspectValue: LanguageAspectValue = {
+    aspectValues.collect { case av: LanguageAspectValue => av }
+      .headOption.getOrElse(sys.error(s"Missing language aspect in fact with ID ${idOption.getOrElse("")}"))
+  }
+
+  final def dimensionAspectValues: Set[DimensionAspectValue] = {
+    aspectValues.collect { case av: DimensionAspectValue => av }
+  }
+
+  final def explicitDimensionAspectValues: Set[ExplicitDimensionAspectValue] = {
+    aspectValues.collect { case av: ExplicitDimensionAspectValue => av }
+  }
+
+  final def typedDimensionAspectValues: Set[TypedDimensionAspectValue] = {
+    aspectValues.collect { case av: TypedDimensionAspectValue => av }
+  }
 }
 
 final case class NonNumericSimpleFact(
@@ -59,7 +99,13 @@ final case class NumericSimpleFact(
   idOption: Option[String],
   aspectValues: Set[AspectValue],
   factValue: SimpleFactValue,
-  accuracy: Accuracy) extends SimpleFact
+  accuracy: Accuracy) extends SimpleFact {
+
+  final def unitAspectValue: UnitAspectValue = {
+    aspectValues.collect { case av: UnitAspectValue => av }
+      .headOption.getOrElse(sys.error(s"Missing unit aspect in fact with ID ${idOption.getOrElse("")}"))
+  }
+}
 
 /**
  * Tuple fact. The child facts are contained in this tuple fact, so the tuple parent and tuple order aspects "work",
