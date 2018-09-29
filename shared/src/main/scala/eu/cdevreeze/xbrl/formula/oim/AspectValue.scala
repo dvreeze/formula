@@ -128,3 +128,17 @@ final case class TypedDimensionAspectValue(
 
   type AspectType = TypedDimensionAspect
 }
+
+object ExplicitDimensionAspectValue {
+
+  def apply(dimension: EName, member: EName): ExplicitDimensionAspectValue = {
+    ExplicitDimensionAspectValue(ExplicitDimensionAspect(dimension), member)
+  }
+}
+
+object TypedDimensionAspectValue {
+
+  def apply(dimension: EName, member: TypedDimensionMember): TypedDimensionAspectValue = {
+    TypedDimensionAspectValue(TypedDimensionAspect(dimension), member)
+  }
+}

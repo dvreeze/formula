@@ -41,11 +41,11 @@ object DtsReference {
     def referenceType: String = "linkbase"
   }
 
-  final case class Arcrole(val href: URI) extends DtsReference {
-    def referenceType: String = "arcrole"
-  }
-
   final case class Role(val href: URI) extends DtsReference {
     def referenceType: String = "role"
+  }
+
+  final case class Arcrole(val href: URI) extends DtsReference {
+    def referenceType: String = "arcrole"
   }
 }

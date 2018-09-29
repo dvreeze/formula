@@ -40,6 +40,8 @@ lazy val commonSettings = Seq(
 
   libraryDependencies += "eu.cdevreeze.yaidom" %%% "yaidom" % "1.9.0",
 
+  libraryDependencies += "eu.cdevreeze.tqa" %%% "tqa" % "0.8.6",
+
   libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.5" % "test"
 )
 

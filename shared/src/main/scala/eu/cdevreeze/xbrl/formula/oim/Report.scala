@@ -22,6 +22,8 @@ import scala.collection.immutable
  * Report, so the "XBRL instance". According to the OIM, the DTS references and facts are unordered,
  * but they are stored here in the order in which they would occur in the corresponding XBRL XML document.
  *
+ * This is therefore not a case class, and has no value equality!
+ *
  * @author Chris de Vreeze
  */
 final class Report(

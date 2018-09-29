@@ -30,4 +30,6 @@ object TypedDimensionMember {
   final case class NumericValue(value: BigDecimal) extends TypedDimensionMember
 
   final case class BooleanValue(value: Boolean) extends TypedDimensionMember
+
+  // TODO What about dates etc.? What about QNames?
 }
