@@ -76,6 +76,32 @@ class AspectValueTest extends FunSuite {
 
     val firstFact = report.topLevelFacts(0)
 
+    assertResult(true) {
+      firstFact.isInstanceOf[NumericSimpleFact]
+    }
+
+    val firstNumericFact = firstFact.asInstanceOf[NumericSimpleFact]
+
+    assertResult(ConceptAspectValue(EName(ns, "m1"))) {
+      firstNumericFact.conceptAspectValue
+    }
+
+    assertResult(EntityAspectValue(URI.create("http://xbrl.org/entity/identification/scheme"), "AAA001")) {
+      firstNumericFact.entityAspectValue
+    }
+
+    assertResult(PeriodAspectValue(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 1, 1)))) {
+      firstNumericFact.periodAspectValue
+    }
+
+    assertResult(UnitAspectValue(Set(EName(Iso4217Namespace, "JPY")), Set())) {
+      firstNumericFact.unitAspectValue
+    }
+
+    assertResult(Set.empty) {
+      firstNumericFact.dimensionAspectValues
+    }
+
     val expectedFirstFact =
       NumericSimpleFact(
         None,
@@ -112,6 +138,53 @@ class AspectValueTest extends FunSuite {
 
     assertResult(expectedLastFact) {
       lastFact
+    }
+  }
+
+  test("testTupleParentAspect") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/40000%20Filters/51210-TupleFilter-Processing-Parent/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("51210-parentInTuple-instance.xml")
+
+    val xbrlInstance: XbrlInstance =
+      XbrlInstanceDocument.build(docBuilder.build(instanceUri)).documentElement
+
+    val taxo =
+      makeTestDts(
+        xbrlInstance.findAllSchemaRefs.map(_.resolvedHref).toSet
+          .union(xbrlInstance.findAllLinkbaseRefs.map(_.resolvedHref).toSet))
+
+    val oimMapper = new XmlToOimMapper(taxo)
+
+    val report = oimMapper.convertXbrlInstance(xbrlInstance)
+
+    val ns = "http://xbrl.org/formula/conformance/example"
+
+    val nestedFacts = report.topLevelTupleFacts.flatMap(_.descendantFacts)
+
+    assertResult(2) {
+      nestedFacts.size
+    }
+    assertResult(List(EName(ns, "b"), EName(ns, "c"))) {
+      nestedFacts.map(_.conceptName)
+    }
+
+    val parentPath = Path.from(EName(ns, "t") -> 0)
+
+    assertResult(List(TupleParentAspectValue(parentPath), TupleParentAspectValue(parentPath))) {
+      nestedFacts.map(_.tupleParentAspectValue)
+    }
+    assertResult(List(TupleOrderAspectValue(Some(0)), TupleOrderAspectValue(Some(1)))) {
+      nestedFacts.map(_.tupleOrderAspectValue)
+    }
+
+    assertResult(nestedFacts) {
+      nestedFacts
+        .map(f => (f.tupleParentAspectValue.parentPath, f.tupleOrderAspectValue.zeroBasedOrderOption))
+        .map {
+          case (tuplePath, orderInTuple) =>
+            report.getNestedFact(tuplePath, orderInTuple.getOrElse(1000000))
+        }
     }
   }
 

@@ -116,6 +116,16 @@ final case class TupleFact(
   aspectValues: Set[AspectValue],
   childFacts: immutable.IndexedSeq[Fact]) extends Fact {
 
+  def descendantFacts: immutable.IndexedSeq[Fact] = {
+    childFacts.flatMap {
+      case simpleFact: SimpleFact =>
+        immutable.IndexedSeq(simpleFact)
+      case tupleFact: TupleFact =>
+        // Recursive call
+        tupleFact +: tupleFact.descendantFacts
+    }
+  }
+
   /**
    * Finds the (optional) fact within the parent tuple at the given relative path (this tuple itself if
    * the path is empty), and the given zero-based fact order within that parent tuple.

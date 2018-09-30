@@ -34,6 +34,14 @@ final class Report(
   val dtsReferences: immutable.IndexedSeq[DtsReference],
   val topLevelFacts: immutable.IndexedSeq[Fact]) {
 
+  def topLevelSimpleFacts: immutable.IndexedSeq[SimpleFact] = {
+    topLevelFacts.collect { case f: SimpleFact => f }
+  }
+
+  def topLevelTupleFacts: immutable.IndexedSeq[TupleFact] = {
+    topLevelFacts.collect { case f: TupleFact => f }
+  }
+
   /**
    * First finds the top-level tuple fact at the first entry of the given relative path, and then on that tuple
    * calls method findDescendantFact with the remainder of the path (and the same order) as parameters.
