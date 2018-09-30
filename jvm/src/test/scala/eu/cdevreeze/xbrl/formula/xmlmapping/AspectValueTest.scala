@@ -110,7 +110,7 @@ class AspectValueTest extends FunSuite {
           .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "AAA001")
           .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 1, 1)))
           .withUnit(UnitAspectValue.fromNumerators(Set(EName(Iso4217Namespace, "JPY"))))
-          .makeTopLevel
+          .addMissingDefaultsForNumericSimpleFacts
           .validatedForNumericSimpleFacts,
         SimpleFactValue.NumericValue(BigDecimal(10000)),
         Accuracy.Infinity)
@@ -129,7 +129,7 @@ class AspectValueTest extends FunSuite {
           .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "DDD004")
           .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 4, 4)))
           .withUnit(UnitAspectValue.fromNumerators(Set(EName(Iso4217Namespace, "TOP"))))
-          .makeTopLevel
+          .addMissingDefaultsForNumericSimpleFacts
           .validatedForNumericSimpleFacts,
         SimpleFactValue.NumericValue(BigDecimal(40)),
         Accuracy.Infinity)

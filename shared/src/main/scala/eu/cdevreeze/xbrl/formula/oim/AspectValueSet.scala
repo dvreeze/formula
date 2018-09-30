@@ -45,7 +45,7 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
     findAspectValue(aspect).getOrElse(sys.error(s"Missing aspect value for aspect $aspect"))
   }
 
-  // Equality and hashCode
+  // Equality and hashCode, and toString
 
   override def equals(other: Any): Boolean = {
     other match {
@@ -56,6 +56,10 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
 
   override def hashCode: Int = {
     aspectValues.hashCode
+  }
+
+  override def toString: String = {
+    aspectValues.toString
   }
 
   // Query methods specific for the different aspects
@@ -224,8 +228,9 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
   }
 
   def addMissingDefaultsForNumericSimpleFacts: AspectValueSet = {
+    // Even though the language aspect does not apply to numeric simple facts, it is added here.
     addIfAbsent(
-      Set[AspectValue](TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty))
+      Set[AspectValue](TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty, LanguageAspectValue.Empty))
   }
 
   def addMissingDefaultsForTupleFacts: AspectValueSet = {
@@ -255,7 +260,7 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
    */
   def validatedForNumericSimpleFacts: AspectValueSet = {
     val requiredAspects =
-      Set[Aspect](ConceptAspect, EntityAspect, PeriodAspect, TupleParentAspect, TupleOrderAspect, UnitAspect)
+      Set[Aspect](ConceptAspect, EntityAspect, PeriodAspect, TupleParentAspect, TupleOrderAspect, LanguageAspect, UnitAspect)
 
     require(
       requiredAspects.subsetOf(this.aspects),
