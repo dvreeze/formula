@@ -16,8 +16,6 @@
 
 package eu.cdevreeze.xbrl.formula.oim
 
-import java.net.URI
-
 import scala.collection.immutable
 
 import eu.cdevreeze.yaidom.core.EName
