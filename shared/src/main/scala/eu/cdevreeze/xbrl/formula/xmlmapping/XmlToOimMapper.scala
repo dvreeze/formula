@@ -33,6 +33,7 @@ import eu.cdevreeze.yaidom.queryapi.BackingNodes
 import eu.cdevreeze.xbrl.formula.oim.Accuracy
 import eu.cdevreeze.xbrl.formula.oim.ArcroleReference
 import eu.cdevreeze.xbrl.formula.oim.AspectValue
+import eu.cdevreeze.xbrl.formula.oim.AspectValueSet
 import eu.cdevreeze.xbrl.formula.oim.ConceptAspectValue
 import eu.cdevreeze.xbrl.formula.oim.EntityAspectValue
 import eu.cdevreeze.xbrl.formula.oim.ExplicitDimensionAspectValue
@@ -122,7 +123,10 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
     val childFacts = fact.findAllChildFacts.map(f => convertFact(f, xbrlInstance))
 
-    TupleFact(idOption, aspectValues, childFacts)
+    TupleFact(
+      idOption,
+      AspectValueSet.from(aspectValues).validatedForTupleFacts,
+      childFacts)
   }
 
   def convertNonNumericItemFact(fact: instance.NonNumericItemFact, xbrlInstance: instance.XbrlInstance): NonNumericSimpleFact = {
@@ -146,7 +150,10 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
     val factValue = extractNonNumericFactValue(fact)
 
-    NonNumericSimpleFact(idOption, aspectValues, factValue)
+    NonNumericSimpleFact(
+      idOption,
+      AspectValueSet.from(aspectValues).validatedForNonNumericSimpleFacts,
+      factValue)
   }
 
   def convertNumericItemFact(fact: instance.NumericItemFact, xbrlInstance: instance.XbrlInstance): NumericSimpleFact = {
@@ -177,7 +184,11 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
     val accuracy = extractAccuracy(fact)
 
-    NumericSimpleFact(idOption, aspectValues, factValue, accuracy)
+    NumericSimpleFact(
+      idOption,
+      AspectValueSet.from(aspectValues).validatedForNumericSimpleFacts,
+      factValue,
+      accuracy)
   }
 
   def extractAspectValuesFromContext(context: instance.XbrliContext): Set[AspectValue] = {
