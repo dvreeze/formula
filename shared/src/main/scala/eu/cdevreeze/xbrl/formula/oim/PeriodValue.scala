@@ -22,6 +22,8 @@ import java.time.ZonedDateTime
 
 /**
  * Period value, so either Forever or a time interval (with or without timezone).
+ * These period values are by design easy to compare for value equality. Indeed, they may depend on
+ * JDK LocalDateTime and ZonedDateTime objects, which themselves are considered "value classes".
  *
  * @author Chris de Vreeze
  */

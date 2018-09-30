@@ -29,6 +29,8 @@ import eu.cdevreeze.yaidom.core.EName
  */
 sealed trait Aspect {
 
+  def aspectName: EName
+
   def aspectConstraint: AspectConstraint
 }
 
@@ -36,48 +38,90 @@ sealed trait CoreAspect extends Aspect
 
 sealed trait TaxonomyDefinedAspect extends Aspect {
 
-  final def aspectConstraint: AspectConstraint = AspectConstraint.AllSimpleFacts
+  final def aspectConstraint: AspectConstraint = AspectConstraint.SimpleFacts
 }
 
 case object ConceptAspect extends CoreAspect {
 
-  def aspectConstraint: AspectConstraint = AspectConstraint.AllFacts
+  def aspectName: EName = Aspect.OimConceptEName
+
+  def aspectConstraint: AspectConstraint = AspectConstraint.SimpleAndTupleFacts
 }
 
 case object EntityAspect extends CoreAspect {
 
-  def aspectConstraint: AspectConstraint = AspectConstraint.AllSimpleFacts
+  def aspectName: EName = Aspect.OimEntityEName
+
+  def aspectConstraint: AspectConstraint = AspectConstraint.SimpleFacts
 }
 
 case object PeriodAspect extends CoreAspect {
 
-  def aspectConstraint: AspectConstraint = AspectConstraint.AllSimpleFacts
+  def aspectName: EName = Aspect.OimPeriodEName
+
+  def aspectConstraint: AspectConstraint = AspectConstraint.SimpleFacts
 }
 
 case object UnitAspect extends CoreAspect {
 
-  def aspectConstraint: AspectConstraint = AspectConstraint.AllNumericSimpleFacts
+  def aspectName: EName = Aspect.OimUnitEName
+
+  def aspectConstraint: AspectConstraint = AspectConstraint.NumericSimpleFacts
 }
 
 case object TupleParentAspect extends CoreAspect {
 
-  def aspectConstraint: AspectConstraint = AspectConstraint.AllFacts
+  def aspectName: EName = Aspect.OimTupleParentEName
+
+  def aspectConstraint: AspectConstraint = AspectConstraint.SimpleAndTupleFacts
 }
 
 case object TupleOrderAspect extends CoreAspect {
 
-  def aspectConstraint: AspectConstraint = AspectConstraint.AllFacts
+  def aspectName: EName = Aspect.OimTupleOrderEName
+
+  def aspectConstraint: AspectConstraint = AspectConstraint.SimpleAndTupleFacts
 }
 
 case object LanguageAspect extends CoreAspect {
 
-  def aspectConstraint: AspectConstraint = AspectConstraint.AllSimpleFacts
+  def aspectName: EName = Aspect.OimLanguageEName
+
+  def aspectConstraint: AspectConstraint = AspectConstraint.SimpleFacts
 }
 
 sealed trait DimensionAspect extends TaxonomyDefinedAspect {
+
+  final def aspectName: EName = dimension
+
   def dimension: EName
 }
 
 final case class ExplicitDimensionAspect(dimension: EName) extends DimensionAspect
 
 final case class TypedDimensionAspect(dimension: EName) extends DimensionAspect
+
+object Aspect {
+
+  val OimNamespace = "http://www.xbrl.org/CR/2017-05-02/oim"
+
+  val OimConceptEName = EName(OimNamespace, "concept")
+  val OimEntityEName = EName(OimNamespace, "entity")
+  val OimPeriodEName = EName(OimNamespace, "period")
+  val OimUnitEName = EName(OimNamespace, "unit")
+  val OimTupleParentEName = EName(OimNamespace, "tupleParent")
+  val OimTupleOrderEName = EName(OimNamespace, "tupleOrder")
+  val OimLanguageEName = EName(OimNamespace, "language")
+
+  def parseAspectName(name: EName, typedDimensions: Set[EName]): Aspect = name match {
+    case OimConceptEName => ConceptAspect
+    case OimEntityEName => EntityAspect
+    case OimPeriodEName => PeriodAspect
+    case OimUnitEName => UnitAspect
+    case OimTupleParentEName => TupleParentAspect
+    case OimTupleOrderEName => TupleOrderAspect
+    case OimLanguageEName => LanguageAspect
+    case name if typedDimensions.contains(name) => TypedDimensionAspect(name)
+    case name => ExplicitDimensionAspect(name)
+  }
+}

@@ -25,7 +25,8 @@ import eu.cdevreeze.yaidom.core.Path
  * Aspect value, so either a core aspect value or a taxonomy-defined aspect value.
  * This corresponds to an aspect in the OIM, whereas an Aspect corresponds to an aspect name in the OIM.
  *
- * Aspect values are very easy and cheap to compare for equality.
+ * Aspect values are very easy and cheap to compare for equality, partly because that is also the case
+ * for aspects (without the values).
  *
  * @author Chris de Vreeze
  */
@@ -129,6 +130,28 @@ final case class TypedDimensionAspectValue(
   type AspectType = TypedDimensionAspect
 }
 
+object UnitAspectValue {
+
+  def fromNumerators(numerators: Set[EName]): UnitAspectValue = {
+    UnitAspectValue(numerators, Set.empty)
+  }
+}
+
+object TupleParentAspectValue {
+
+  val Empty = TupleParentAspectValue(Path.Empty)
+}
+
+object TupleOrderAspectValue {
+
+  val Empty = TupleOrderAspectValue(None)
+}
+
+object LanguageAspectValue {
+
+  val Empty = LanguageAspectValue(None)
+}
+
 object ExplicitDimensionAspectValue {
 
   def apply(dimension: EName, member: EName): ExplicitDimensionAspectValue = {
@@ -140,5 +163,50 @@ object TypedDimensionAspectValue {
 
   def apply(dimension: EName, member: TypedDimensionMember): TypedDimensionAspectValue = {
     TypedDimensionAspectValue(TypedDimensionAspect(dimension), member)
+  }
+}
+
+/**
+ * Safe construction methods for aspect value sets, preventing duplicate aspects in aspect value sets.
+ */
+object AspectValue {
+
+  /**
+   * Adds the aspect value if its aspect not yet occurs, and replaces it if its aspect already occurs.
+   * In other words, the added aspect value takes precedence, and its aspect will occur only once afterwards.
+   */
+  def addOrUpdate(aspectValues: Set[AspectValue], aspectValue: AspectValue): Set[AspectValue] = {
+    aspectValues.filterNot(_.aspect == aspectValue.aspect) + aspectValue
+  }
+
+  /**
+   * Adds the aspect value if its aspect not yet occurs, and returns the same aspect values unaltered otherwise.
+   */
+  def addIfAbsent(aspectValues: Set[AspectValue], aspectValue: AspectValue): Set[AspectValue] = {
+    if (aspectValues.find(_.aspect == aspectValue.aspect).isEmpty) {
+      aspectValues + aspectValue
+    } else {
+      aspectValues
+    }
+  }
+
+  /**
+   * Repeatedly invokes overloaded method addOrUpdate for a single aspect value, for each aspect value in aspectValues2.
+   */
+  def addOrUpdate(aspectValues1: Set[AspectValue], aspectValues2: Set[AspectValue]): Set[AspectValue] = {
+    aspectValues2.foldLeft(aspectValues1) {
+      case (accAspectValues, nextAspectValue) =>
+        addOrUpdate(accAspectValues, nextAspectValue)
+    }
+  }
+
+  /**
+   * Repeatedly invokes overloaded method addIfAbsent for a single aspect value, for each aspect value in aspectValues2.
+   */
+  def addIfAbsent(aspectValues1: Set[AspectValue], aspectValues2: Set[AspectValue]): Set[AspectValue] = {
+    aspectValues2.foldLeft(aspectValues1) {
+      case (accAspectValues, nextAspectValue) =>
+        addIfAbsent(accAspectValues, nextAspectValue)
+    }
   }
 }

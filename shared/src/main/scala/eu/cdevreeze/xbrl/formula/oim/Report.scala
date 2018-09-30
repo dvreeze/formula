@@ -65,7 +65,7 @@ final class Report(
 
   def getNestedFact(relativePath: Path, orderInParentTuple: Int): Fact = {
     findNestedFact(relativePath, orderInParentTuple).getOrElse {
-      sys.error(s"No fact found at path $relativePath and 0-based order in parent $orderInParentTuple")
+      sys.error(s"No nested fact found at path $relativePath and 0-based order in parent $orderInParentTuple")
     }
   }
 }

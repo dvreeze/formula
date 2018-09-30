@@ -105,16 +105,15 @@ class AspectValueTest extends FunSuite {
     val expectedFirstFact =
       NumericSimpleFact(
         None,
-        Set[AspectValue](
-          ConceptAspectValue(EName(ns, "m1")),
-          EntityAspectValue(URI.create("http://xbrl.org/entity/identification/scheme"), "AAA001"),
-          PeriodAspectValue(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 1, 1))),
-          TupleParentAspectValue(Path.Empty),
-          TupleOrderAspectValue(None),
-          LanguageAspectValue(None),
-          UnitAspectValue(Set(EName(Iso4217Namespace, "JPY")), Set())),
+        NumericSimpleFact.AspectValueBuilder
+          .concept(EName(ns, "m1"))
+          .entity(URI.create("http://xbrl.org/entity/identification/scheme"), "AAA001")
+          .period(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 1, 1)))
+          .unit(UnitAspectValue.fromNumerators(Set(EName(Iso4217Namespace, "JPY"))))
+          .topLevel
+          .build(),
         SimpleFactValue.NumericValue(BigDecimal(10000)),
-        Infinity)
+        Accuracy.Infinity)
 
     assertResult(expectedFirstFact) {
       firstFact
@@ -125,16 +124,15 @@ class AspectValueTest extends FunSuite {
     val expectedLastFact =
       NumericSimpleFact(
         None,
-        Set[AspectValue](
-          ConceptAspectValue(EName(ns, "m4")),
-          EntityAspectValue(URI.create("http://xbrl.org/entity/identification/scheme"), "DDD004"),
-          PeriodAspectValue(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 4, 4))),
-          TupleParentAspectValue(Path.Empty),
-          TupleOrderAspectValue(None),
-          LanguageAspectValue(None),
-          UnitAspectValue(Set(EName(Iso4217Namespace, "TOP")), Set())),
+        NumericSimpleFact.AspectValueBuilder
+          .concept(EName(ns, "m4"))
+          .entity(URI.create("http://xbrl.org/entity/identification/scheme"), "DDD004")
+          .period(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 4, 4)))
+          .unit(UnitAspectValue.fromNumerators(Set(EName(Iso4217Namespace, "TOP"))))
+          .topLevel
+          .build(),
         SimpleFactValue.NumericValue(BigDecimal(40)),
-        Infinity)
+        Accuracy.Infinity)
 
     assertResult(expectedLastFact) {
       lastFact

@@ -31,21 +31,18 @@ sealed trait DtsReference {
   def href: URI
 }
 
-object DtsReference {
+final case class SchemaReference(val href: URI) extends DtsReference {
+  def referenceType: String = "schema"
+}
 
-  final case class Schema(val href: URI) extends DtsReference {
-    def referenceType: String = "schema"
-  }
+final case class LinkbaseReference(val href: URI) extends DtsReference {
+  def referenceType: String = "linkbase"
+}
 
-  final case class Linkbase(val href: URI) extends DtsReference {
-    def referenceType: String = "linkbase"
-  }
+final case class RoleReference(val href: URI) extends DtsReference {
+  def referenceType: String = "role"
+}
 
-  final case class Role(val href: URI) extends DtsReference {
-    def referenceType: String = "role"
-  }
-
-  final case class Arcrole(val href: URI) extends DtsReference {
-    def referenceType: String = "arcrole"
-  }
+final case class ArcroleReference(val href: URI) extends DtsReference {
+  def referenceType: String = "arcrole"
 }

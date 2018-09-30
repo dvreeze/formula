@@ -31,22 +31,24 @@ import eu.cdevreeze.tqa.instance
 import eu.cdevreeze.yaidom.core.EName
 import eu.cdevreeze.yaidom.queryapi.BackingNodes
 import eu.cdevreeze.xbrl.formula.oim.Accuracy
+import eu.cdevreeze.xbrl.formula.oim.ArcroleReference
 import eu.cdevreeze.xbrl.formula.oim.AspectValue
 import eu.cdevreeze.xbrl.formula.oim.ConceptAspectValue
-import eu.cdevreeze.xbrl.formula.oim.DtsReference
 import eu.cdevreeze.xbrl.formula.oim.EntityAspectValue
 import eu.cdevreeze.xbrl.formula.oim.ExplicitDimensionAspectValue
 import eu.cdevreeze.xbrl.formula.oim.Fact
 import eu.cdevreeze.xbrl.formula.oim.FiniteAccuracy
 import eu.cdevreeze.xbrl.formula.oim.Forever
-import eu.cdevreeze.xbrl.formula.oim.Infinity
 import eu.cdevreeze.xbrl.formula.oim.LanguageAspectValue
+import eu.cdevreeze.xbrl.formula.oim.LinkbaseReference
 import eu.cdevreeze.xbrl.formula.oim.LocalTimeInterval
 import eu.cdevreeze.xbrl.formula.oim.NonNumericSimpleFact
 import eu.cdevreeze.xbrl.formula.oim.NumericSimpleFact
 import eu.cdevreeze.xbrl.formula.oim.PeriodAspectValue
 import eu.cdevreeze.xbrl.formula.oim.PeriodValue
 import eu.cdevreeze.xbrl.formula.oim.Report
+import eu.cdevreeze.xbrl.formula.oim.RoleReference
+import eu.cdevreeze.xbrl.formula.oim.SchemaReference
 import eu.cdevreeze.xbrl.formula.oim.SimpleFact
 import eu.cdevreeze.xbrl.formula.oim.SimpleFactValue
 import eu.cdevreeze.xbrl.formula.oim.TupleFact
@@ -148,6 +150,8 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
   }
 
   def convertNumericItemFact(fact: instance.NumericItemFact, xbrlInstance: instance.XbrlInstance): NumericSimpleFact = {
+    // TODO Require a non-fraction numeric item
+
     val idOption = fact.attributeOption(ENames.IdEName)
 
     val context = xbrlInstance.getContextById(fact.contextRef)
@@ -305,20 +309,20 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
     LanguageAspectValue(langOption)
   }
 
-  def convertSchemaRef(schemaRef: instance.SchemaRef): DtsReference.Schema = {
-    DtsReference.Schema(schemaRef.resolvedHref)
+  def convertSchemaRef(schemaRef: instance.SchemaRef): SchemaReference = {
+    SchemaReference(schemaRef.resolvedHref)
   }
 
-  def convertLinkbaseRef(schemaRef: instance.LinkbaseRef): DtsReference.Linkbase = {
-    DtsReference.Linkbase(schemaRef.resolvedHref)
+  def convertLinkbaseRef(schemaRef: instance.LinkbaseRef): LinkbaseReference = {
+    LinkbaseReference(schemaRef.resolvedHref)
   }
 
-  def convertRoleRef(schemaRef: instance.RoleRef): DtsReference.Role = {
-    DtsReference.Role(schemaRef.resolvedHref)
+  def convertRoleRef(schemaRef: instance.RoleRef): RoleReference = {
+    RoleReference(schemaRef.resolvedHref)
   }
 
-  def convertArcroleRef(schemaRef: instance.ArcroleRef): DtsReference.Arcrole = {
-    DtsReference.Arcrole(schemaRef.resolvedHref)
+  def convertArcroleRef(schemaRef: instance.ArcroleRef): ArcroleReference = {
+    ArcroleReference(schemaRef.resolvedHref)
   }
 
   // TODO Footnotes
@@ -439,14 +443,14 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
   private def extractAccuracy(numericItemFact: instance.NumericItemFact): Accuracy = {
     numericItemFact match {
       case f: instance.NilNumericItemFact =>
-        Infinity
+        Accuracy.Infinity
       case f: instance.NonNilFractionItemFact =>
-        Infinity
+        Accuracy.Infinity
       case f: instance.NonNilNonFractionNumericItemFact =>
         val decimalsOption = f.decimalsOption
         val precisionOption = f.precisionOption
 
-        decimalsOption.map(n => convertDecimalsToAccuracy(n)).getOrElse {
+        decimalsOption.map(n => Accuracy.parse(n.toString)).getOrElse {
           require(
             precisionOption.nonEmpty,
             s"A non-nil non-fraction numeric item must have either a decimals or precision attribute")
@@ -456,33 +460,25 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
           convertPrecisionToAccuracy(precision, numericItemFact.text)
         }
       case f =>
-        Infinity
-    }
-  }
-
-  private def convertDecimalsToAccuracy(decimals: String): Accuracy = {
-    if (decimals.trim == "INF") {
-      Infinity
-    } else {
-      FiniteAccuracy(decimals.trim.toInt)
+        Accuracy.Infinity
     }
   }
 
   private def convertPrecisionToAccuracy(precision: String, factValue: String): Accuracy = {
-    precision.trim match {
-      case "INF" =>
-        Infinity
-      case s =>
-        val precisionInt = s.toInt
+    val precisionAsAccuracy = Accuracy.parse(precision.trim)
 
+    precisionAsAccuracy match {
+      case Accuracy.Infinity =>
+        Accuracy.Infinity
+      case FiniteAccuracy(precisionInt) =>
         if (precisionInt == 0) {
           // Not correct, but we have to return something!
-          Infinity
+          Accuracy.Infinity
         } else {
           val numericFactValue = BigDecimal(factValue.trim)
 
           if (numericFactValue.isWhole && numericFactValue.toInt == 0) {
-            Infinity
+            Accuracy.Infinity
           } else {
             val inferredDecimals =
               precisionInt - floor(log10(numericFactValue.abs.toDouble)).toInt - 1

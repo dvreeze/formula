@@ -17,12 +17,24 @@
 package eu.cdevreeze.xbrl.formula.oim
 
 /**
- * Accuracy.
+ * Accuracy, that is, the value of a decimals or precision attribute of a numeric simple fact.
  *
  * @author Chris de Vreeze
  */
 sealed trait Accuracy
 
-case object Infinity extends Accuracy
+final case class FiniteAccuracy(numberOfDecimalPlaces: Int) extends Accuracy {
+  override def toString: String = numberOfDecimalPlaces.toString
+}
 
-final case class FiniteAccuracy(numberOfDecimalPlaces: Int) extends Accuracy
+object Accuracy {
+
+  case object Infinity extends Accuracy {
+    override def toString: String = "INF"
+  }
+
+  def parse(s: String): Accuracy = s match {
+    case "INF" => Infinity
+    case s => FiniteAccuracy(s.toInt)
+  }
+}

@@ -16,6 +16,8 @@
 
 package eu.cdevreeze.xbrl.formula.oim
 
+import java.net.URI
+
 import scala.collection.immutable
 
 import eu.cdevreeze.yaidom.core.EName
@@ -88,6 +90,36 @@ sealed trait SimpleFact extends Fact {
   final def typedDimensionAspectValues: Set[TypedDimensionAspectValue] = {
     aspectValues.collect { case av: TypedDimensionAspectValue => av }
   }
+
+  final def findDimensionAspectValue(dimension: EName): Option[DimensionAspectValue] = {
+    dimensionAspectValues.find(_.dimension == dimension)
+  }
+
+  final def findExplicitDimensionAspectValue(dimension: EName): Option[ExplicitDimensionAspectValue] = {
+    explicitDimensionAspectValues.find(_.dimension == dimension)
+  }
+
+  final def findTypedDimensionAspectValue(dimension: EName): Option[TypedDimensionAspectValue] = {
+    typedDimensionAspectValues.find(_.dimension == dimension)
+  }
+
+  final def getDimensionAspectValue(dimension: EName): DimensionAspectValue = {
+    findDimensionAspectValue(dimension).getOrElse {
+      sys.error(s"No dimension aspect value found for dimension $dimension")
+    }
+  }
+
+  final def getExplicitDimensionAspectValue(dimension: EName): ExplicitDimensionAspectValue = {
+    findExplicitDimensionAspectValue(dimension).getOrElse {
+      sys.error(s"No explicit dimension aspect value found for dimension $dimension")
+    }
+  }
+
+  final def getTypedDimensionAspectValue(dimension: EName): TypedDimensionAspectValue = {
+    findTypedDimensionAspectValue(dimension).getOrElse {
+      sys.error(s"No typed dimension aspect value found for dimension $dimension")
+    }
+  }
 }
 
 final case class NonNumericSimpleFact(
@@ -101,7 +133,7 @@ final case class NumericSimpleFact(
   factValue: SimpleFactValue,
   accuracy: Accuracy) extends SimpleFact {
 
-  final def unitAspectValue: UnitAspectValue = {
+  def unitAspectValue: UnitAspectValue = {
     aspectValues.collect { case av: UnitAspectValue => av }
       .headOption.getOrElse(sys.error(s"Missing unit aspect in fact with ID ${idOption.getOrElse("")}"))
   }
@@ -155,6 +187,200 @@ final case class TupleFact(
   def getDescendantFact(relativePath: Path, orderInParentTuple: Int): Fact = {
     findDescendantFact(relativePath, orderInParentTuple).getOrElse {
       sys.error(s"No fact found at path $relativePath and 0-based order in parent $orderInParentTuple")
+    }
+  }
+}
+
+object NonNumericSimpleFact {
+
+  final case class AspectValueBuilder(aspectValues: Set[AspectValue]) {
+
+    def entity(aspectValue: EntityAspectValue): AspectValueBuilder = {
+      addOrUpdate(aspectValue)
+    }
+
+    def entity(scheme: URI, identifier: String): AspectValueBuilder = {
+      entity(EntityAspectValue(scheme, identifier))
+    }
+
+    def period(aspectValue: PeriodAspectValue): AspectValueBuilder = {
+      addOrUpdate(aspectValue)
+    }
+
+    def period(periodValue: PeriodValue): AspectValueBuilder = {
+      period(PeriodAspectValue(periodValue))
+    }
+
+    def tupleParent(tupleParentAspectValue: TupleParentAspectValue, tupleOrderAspectValue: TupleOrderAspectValue): AspectValueBuilder = {
+      addOrUpdate(tupleParentAspectValue).addOrUpdate(tupleOrderAspectValue)
+    }
+
+    def tupleParent(parentPath: Path, zeroBasedOrderOption: Option[Int]): AspectValueBuilder = {
+      tupleParent(TupleParentAspectValue(parentPath), TupleOrderAspectValue(zeroBasedOrderOption))
+    }
+
+    def topLevel: AspectValueBuilder = {
+      tupleParent(TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty)
+    }
+
+    def language(aspectValue: LanguageAspectValue): AspectValueBuilder = {
+      addOrUpdate(aspectValue)
+    }
+
+    def dimension(aspectValue: DimensionAspectValue): AspectValueBuilder = {
+      addOrUpdate(aspectValue)
+    }
+
+    def dimensions(addedAspectValues: Set[DimensionAspectValue]): AspectValueBuilder = {
+      addedAspectValues.foldLeft(this) {
+        case (acc, dimAspectValue) =>
+          acc.addOrUpdate(dimAspectValue)
+      }
+    }
+
+    def build(): Set[AspectValue] = {
+      require(
+        Set[Aspect](ConceptAspect, EntityAspect, PeriodAspect).subsetOf(aspectValues.map(_.aspect)),
+        s"Missing concept, entity and/or period aspect")
+
+      AspectValue.addIfAbsent(
+        aspectValues,
+        Set[AspectValue](TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty, LanguageAspectValue.Empty))
+    }
+
+    private def addOrUpdate(aspectValue: AspectValue): AspectValueBuilder = {
+      AspectValueBuilder(
+        AspectValue.addOrUpdate(aspectValues, aspectValue))
+    }
+  }
+
+  object AspectValueBuilder {
+
+    def concept(aspectValue: ConceptAspectValue): AspectValueBuilder = {
+      AspectValueBuilder(Set(aspectValue))
+    }
+
+    def concept(name: EName): AspectValueBuilder = {
+      concept(ConceptAspectValue(name))
+    }
+  }
+}
+
+object NumericSimpleFact {
+
+  final case class AspectValueBuilder(aspectValues: Set[AspectValue]) {
+
+    def entity(aspectValue: EntityAspectValue): AspectValueBuilder = {
+      addOrUpdate(aspectValue)
+    }
+
+    def entity(scheme: URI, identifier: String): AspectValueBuilder = {
+      entity(EntityAspectValue(scheme, identifier))
+    }
+
+    def period(aspectValue: PeriodAspectValue): AspectValueBuilder = {
+      addOrUpdate(aspectValue)
+    }
+
+    def period(periodValue: PeriodValue): AspectValueBuilder = {
+      period(PeriodAspectValue(periodValue))
+    }
+
+    def tupleParent(tupleParentAspectValue: TupleParentAspectValue, tupleOrderAspectValue: TupleOrderAspectValue): AspectValueBuilder = {
+      addOrUpdate(tupleParentAspectValue).addOrUpdate(tupleOrderAspectValue)
+    }
+
+    def tupleParent(parentPath: Path, zeroBasedOrderOption: Option[Int]): AspectValueBuilder = {
+      tupleParent(TupleParentAspectValue(parentPath), TupleOrderAspectValue(zeroBasedOrderOption))
+    }
+
+    def topLevel: AspectValueBuilder = {
+      tupleParent(TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty)
+    }
+
+    def dimension(aspectValue: DimensionAspectValue): AspectValueBuilder = {
+      addOrUpdate(aspectValue)
+    }
+
+    def dimensions(addedAspectValues: Set[DimensionAspectValue]): AspectValueBuilder = {
+      addedAspectValues.foldLeft(this) {
+        case (acc, dimAspectValue) =>
+          acc.addOrUpdate(dimAspectValue)
+      }
+    }
+
+    def unit(aspectValue: UnitAspectValue): AspectValueBuilder = {
+      addOrUpdate(aspectValue)
+    }
+
+    def build(): Set[AspectValue] = {
+      require(
+        Set[Aspect](ConceptAspect, EntityAspect, PeriodAspect, UnitAspect).subsetOf(aspectValues.map(_.aspect)),
+        s"Missing concept, entity, period and/or unit aspect")
+
+      AspectValue.addIfAbsent(
+        aspectValues,
+        Set[AspectValue](TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty, LanguageAspectValue.Empty))
+    }
+
+    private def addOrUpdate(aspectValue: AspectValue): AspectValueBuilder = {
+      AspectValueBuilder(
+        AspectValue.addOrUpdate(aspectValues, aspectValue))
+    }
+  }
+
+  object AspectValueBuilder {
+
+    def concept(aspectValue: ConceptAspectValue): AspectValueBuilder = {
+      AspectValueBuilder(Set(aspectValue))
+    }
+
+    def concept(name: EName): AspectValueBuilder = {
+      concept(ConceptAspectValue(name))
+    }
+  }
+}
+
+object TupleFact {
+
+  final case class AspectValueBuilder(aspectValues: Set[AspectValue]) {
+
+    def tupleParent(tupleParentAspectValue: TupleParentAspectValue, tupleOrderAspectValue: TupleOrderAspectValue): AspectValueBuilder = {
+      addOrUpdate(tupleParentAspectValue).addOrUpdate(tupleOrderAspectValue)
+    }
+
+    def tupleParent(parentPath: Path, zeroBasedOrderOption: Option[Int]): AspectValueBuilder = {
+      tupleParent(TupleParentAspectValue(parentPath), TupleOrderAspectValue(zeroBasedOrderOption))
+    }
+
+    def topLevel: AspectValueBuilder = {
+      tupleParent(TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty)
+    }
+
+    def build(): Set[AspectValue] = {
+      require(
+        Set[Aspect](ConceptAspect).subsetOf(aspectValues.map(_.aspect)),
+        s"Missing concept aspect")
+
+      AspectValue.addIfAbsent(
+        aspectValues,
+        Set[AspectValue](TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty))
+    }
+
+    private def addOrUpdate(aspectValue: AspectValue): AspectValueBuilder = {
+      AspectValueBuilder(
+        AspectValue.addOrUpdate(aspectValues, aspectValue))
+    }
+  }
+
+  object AspectValueBuilder {
+
+    def concept(aspectValue: ConceptAspectValue): AspectValueBuilder = {
+      AspectValueBuilder(Set(aspectValue))
+    }
+
+    def concept(name: EName): AspectValueBuilder = {
+      concept(ConceptAspectValue(name))
     }
   }
 }
