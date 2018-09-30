@@ -200,7 +200,7 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
     withLanguage(LanguageAspectValue(languageOption))
   }
 
-  def withDimensions(dimensionAspectValues: Set[DimensionAspectValue]): AspectValueSet = {
+  def addOrUpdateDimensions(dimensionAspectValues: Set[DimensionAspectValue]): AspectValueSet = {
     addOrUpdate(dimensionAspectValues.map(_.asInstanceOf[AspectValue]))
   }
 
@@ -222,18 +222,18 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
 
   // Specific functional updates for different kinds of facts
 
-  def addMissingDefaultsForNonNumericSimpleFacts: AspectValueSet = {
+  def addDefaultsForNonNumericSimpleFacts: AspectValueSet = {
     addIfAbsent(
       Set[AspectValue](TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty, LanguageAspectValue.Empty))
   }
 
-  def addMissingDefaultsForNumericSimpleFacts: AspectValueSet = {
+  def addDefaultsForNumericSimpleFacts: AspectValueSet = {
     // Even though the language aspect does not apply to numeric simple facts, it is added here.
     addIfAbsent(
       Set[AspectValue](TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty, LanguageAspectValue.Empty))
   }
 
-  def addMissingDefaultsForTupleFacts: AspectValueSet = {
+  def addDefaultsForTupleFacts: AspectValueSet = {
     addIfAbsent(
       Set[AspectValue](TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty))
   }
