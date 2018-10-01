@@ -22,23 +22,29 @@ import eu.cdevreeze.yaidom.core.EName
 import eu.cdevreeze.yaidom.core.Path
 
 /**
- * Aspect value set, designed as a "value class". This class makes sure that no duplicate aspects occur
- * (for internal consistency). It contains (functional) builders for adding aspect value sets, and it has methods
- * filling in missing aspect values where required.
+ * Aspect value set, designed as a "value class". This class makes sure it is internally consistent.
+ * It contains (functional) builders for adding aspect value sets, and it has methods  filling in
+ * missing aspect values where required.
  *
  * @author Chris de Vreeze
  */
-final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
-  require(aspectValues.size == aspectValues.toSeq.map(_.aspect).distinct.size, s"Duplicate aspects not allowed")
+final class AspectValueSet private (val aspectValueMap: Map[Aspect, AspectValue]) {
+  assert(
+    aspectValueMap.forall(kv => kv._1 == kv._2.aspect),
+    s"Mismatch between aspects and aspect values in '$aspectValueMap'")
 
   // Query methods
 
+  def aspectValues: Set[AspectValue] = {
+    aspectValueMap.values.toSet
+  }
+
   def aspects: Set[Aspect] = {
-    aspectValues.toSeq.map(_.aspect).toSet
+    aspectValueMap.keySet
   }
 
   def findAspectValue(aspect: Aspect): Option[AspectValue] = {
-    aspectValues.find(_.aspect == aspect)
+    aspectValueMap.get(aspect)
   }
 
   def getAspectValue(aspect: Aspect): AspectValue = {
@@ -49,13 +55,13 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
 
   override def equals(other: Any): Boolean = {
     other match {
-      case other: AspectValueSet => this.aspectValues == other.aspectValues
+      case other: AspectValueSet => this.aspectValueMap == other.aspectValueMap
       case _ => false
     }
   }
 
   override def hashCode: Int = {
-    aspectValues.hashCode
+    aspectValueMap.hashCode
   }
 
   override def toString: String = {
@@ -92,6 +98,18 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
     findAspectValue(UnitAspect).collect { case av: UnitAspectValue => av }
   }
 
+  def findAllDimensionAspectValuePairs: Map[Aspect, AspectValue] = {
+    aspectValueMap.collect { case kv @ (a: DimensionAspect, av: DimensionAspectValue) => kv }
+  }
+
+  def findAllExplicitDimensionAspectValuePairs: Map[Aspect, AspectValue] = {
+    aspectValueMap.collect { case kv @ (a: ExplicitDimensionAspect, av: ExplicitDimensionAspectValue) => kv }
+  }
+
+  def findAllTypedDimensionAspectValuePairs: Map[Aspect, AspectValue] = {
+    aspectValueMap.collect { case kv @ (a: TypedDimensionAspect, av: TypedDimensionAspectValue) => kv }
+  }
+
   def findAllDimensionAspectValues: Set[DimensionAspectValue] = {
     aspectValues.collect { case av: DimensionAspectValue => av }
   }
@@ -107,7 +125,7 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
   // Generally available functional updates
 
   def filteringAspects(aspects: Set[Aspect]): AspectValueSet = {
-    new AspectValueSet(this.aspectValues.filter(av => aspects.contains(av.aspect)))
+    new AspectValueSet(this.aspectValueMap.filterKeys(aspects))
   }
 
   def withoutAspects(aspects: Set[Aspect]): AspectValueSet = {
@@ -120,18 +138,15 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
    */
   def addOrUpdate(aspectValue: AspectValue): AspectValueSet = {
     new AspectValueSet(
-      this.aspectValues.filterNot(_.aspect == aspectValue.aspect) + aspectValue)
+      this.aspectValueMap + (aspectValue.aspect -> aspectValue))
   }
 
   /**
    * Adds the aspect value if its aspect does not yet occur, and returns this object unaltered otherwise.
    */
   def addIfAbsent(aspectValue: AspectValue): AspectValueSet = {
-    if (findAspectValue(aspectValue.aspect).isEmpty) {
-      new AspectValueSet(this.aspectValues + aspectValue)
-    } else {
-      this
-    }
+    new AspectValueSet(
+      Map(aspectValue.aspect -> aspectValue) ++ this.aspectValueMap)
   }
 
   /**
@@ -285,16 +300,22 @@ final class AspectValueSet private (val aspectValues: Set[AspectValue]) {
 
 object AspectValueSet {
 
-  val Empty = new AspectValueSet(Set.empty)
+  val Empty = new AspectValueSet(Map.empty)
+
+  def apply(aspectValueMap: Map[Aspect, AspectValue]): AspectValueSet = {
+    require(
+      aspectValueMap.forall(kv => kv._1 == kv._2.aspect),
+      s"Mismatch between aspects and aspect values in '$aspectValueMap'")
+
+    new AspectValueSet(aspectValueMap)
+  }
 
   /**
    * Creates an AspectValueSet from the given aspect values. If there are duplicate aspects,
    * it is undefined which aspect value for that aspect wins.
    */
   def from(aspectValues: Set[AspectValue]): AspectValueSet = {
-    aspectValues.foldLeft(Empty) {
-      case (acc, aspectValue) =>
-        acc.addOrUpdate(aspectValue)
-    }
+    val aspectValueMap = aspectValues.toSeq.groupBy(_.aspect.asInstanceOf[Aspect]).mapValues(_.head)
+    apply(aspectValueMap)
   }
 }
