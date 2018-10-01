@@ -19,7 +19,7 @@ package eu.cdevreeze.xbrl.formula.oim
 /**
  * Aspect constraint, which says for which kinds of facts an aspect is applicable. It is not precise
  * enough to express that the tuple parent aspect, tuple order aspect and language aspect are only applicable
- * to some facts, but it does make the distinction between simple and tuple facts, simple facts only, and
+ * to some facts, but it does make the distinction between simple-and-tuple facts, simple facts only, and
  * numeric simple facts only.
  *
  * @author Chris de Vreeze

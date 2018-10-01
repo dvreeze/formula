@@ -98,16 +98,16 @@ final class AspectValueSet private (val aspectValueMap: Map[Aspect, AspectValue]
     findAspectValue(UnitAspect).collect { case av: UnitAspectValue => av }
   }
 
-  def findAllDimensionAspectValuePairs: Map[Aspect, AspectValue] = {
-    aspectValueMap.collect { case kv @ (a: DimensionAspect, av: DimensionAspectValue) => kv }
+  def findDimensionAspectValue(dimension: EName): Option[DimensionAspectValue] = {
+    findExplicitDimensionAspectValue(dimension).orElse(findTypedDimensionAspectValue(dimension))
   }
 
-  def findAllExplicitDimensionAspectValuePairs: Map[Aspect, AspectValue] = {
-    aspectValueMap.collect { case kv @ (a: ExplicitDimensionAspect, av: ExplicitDimensionAspectValue) => kv }
+  def findExplicitDimensionAspectValue(dimension: EName): Option[ExplicitDimensionAspectValue] = {
+    findAspectValue(ExplicitDimensionAspect(dimension)).collect { case av: ExplicitDimensionAspectValue => av }
   }
 
-  def findAllTypedDimensionAspectValuePairs: Map[Aspect, AspectValue] = {
-    aspectValueMap.collect { case kv @ (a: TypedDimensionAspect, av: TypedDimensionAspectValue) => kv }
+  def findTypedDimensionAspectValue(dimension: EName): Option[TypedDimensionAspectValue] = {
+    findAspectValue(TypedDimensionAspect(dimension)).collect { case av: TypedDimensionAspectValue => av }
   }
 
   def findAllDimensionAspectValues: Set[DimensionAspectValue] = {

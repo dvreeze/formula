@@ -46,12 +46,12 @@ sealed trait Fact {
 
   final def tupleParentAspectValue: TupleParentAspectValue = {
     aspectValueSet.findTupleParentAspectValue
-      .headOption.getOrElse(sys.error(s"Missing tuple parent aspect in fact with ID ${idOption.getOrElse("")}"))
+      .getOrElse(sys.error(s"Missing tuple parent aspect in fact with ID ${idOption.getOrElse("")}"))
   }
 
   final def tupleOrderAspectValue: TupleOrderAspectValue = {
     aspectValueSet.findTupleOrderAspectValue
-      .headOption.getOrElse(sys.error(s"Missing tuple order aspect in fact with ID ${idOption.getOrElse("")}"))
+      .getOrElse(sys.error(s"Missing tuple order aspect in fact with ID ${idOption.getOrElse("")}"))
   }
 
   // TODO Footnotes
@@ -63,17 +63,17 @@ sealed trait SimpleFact extends Fact {
 
   final def entityAspectValue: EntityAspectValue = {
     aspectValueSet.findEntityAspectValue
-      .headOption.getOrElse(sys.error(s"Missing entity aspect in fact with ID ${idOption.getOrElse("")}"))
+      .getOrElse(sys.error(s"Missing entity aspect in fact with ID ${idOption.getOrElse("")}"))
   }
 
   final def periodAspectValue: PeriodAspectValue = {
     aspectValueSet.findPeriodAspectValue
-      .headOption.getOrElse(sys.error(s"Missing period aspect in fact with ID ${idOption.getOrElse("")}"))
+      .getOrElse(sys.error(s"Missing period aspect in fact with ID ${idOption.getOrElse("")}"))
   }
 
   final def languageAspectValue: LanguageAspectValue = {
     aspectValueSet.findLanguageAspectValue
-      .headOption.getOrElse(sys.error(s"Missing language aspect in fact with ID ${idOption.getOrElse("")}"))
+      .getOrElse(sys.error(s"Missing language aspect in fact with ID ${idOption.getOrElse("")}"))
   }
 
   final def dimensionAspectValues: Set[DimensionAspectValue] = {
@@ -89,15 +89,15 @@ sealed trait SimpleFact extends Fact {
   }
 
   final def findDimensionAspectValue(dimension: EName): Option[DimensionAspectValue] = {
-    dimensionAspectValues.find(_.dimension == dimension)
+    aspectValueSet.findDimensionAspectValue(dimension)
   }
 
   final def findExplicitDimensionAspectValue(dimension: EName): Option[ExplicitDimensionAspectValue] = {
-    explicitDimensionAspectValues.find(_.dimension == dimension)
+    aspectValueSet.findExplicitDimensionAspectValue(dimension)
   }
 
   final def findTypedDimensionAspectValue(dimension: EName): Option[TypedDimensionAspectValue] = {
-    typedDimensionAspectValues.find(_.dimension == dimension)
+    aspectValueSet.findTypedDimensionAspectValue(dimension)
   }
 
   final def getDimensionAspectValue(dimension: EName): DimensionAspectValue = {
@@ -132,7 +132,7 @@ final case class NumericSimpleFact(
 
   def unitAspectValue: UnitAspectValue = {
     aspectValueSet.findUnitAspectValue
-      .headOption.getOrElse(sys.error(s"Missing unit aspect in fact with ID ${idOption.getOrElse("")}"))
+      .getOrElse(sys.error(s"Missing unit aspect in fact with ID ${idOption.getOrElse("")}"))
   }
 }
 
