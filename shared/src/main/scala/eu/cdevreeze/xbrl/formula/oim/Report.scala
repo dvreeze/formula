@@ -42,6 +42,17 @@ final class Report(
     topLevelFacts.collect { case f: TupleFact => f }
   }
 
+  def allFacts: immutable.IndexedSeq[Fact] = {
+    topLevelFacts.flatMap {
+      case f: SimpleFact => immutable.IndexedSeq(f)
+      case f: TupleFact => f +: f.descendantFacts
+    }
+  }
+
+  def aspectUniverse: Set[Aspect] = {
+    allFacts.flatMap(_.aspectValueSet.aspects).toSet
+  }
+
   /**
    * First finds the top-level tuple fact at the first entry of the given relative path, and then on that tuple
    * calls method findDescendantFact with the remainder of the path (and the same order) as parameters.
