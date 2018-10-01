@@ -64,6 +64,10 @@ sealed trait SimpleFact extends Fact {
    */
   def factValueOption: Option[SimpleValue]
 
+  final def isNil: Boolean = {
+    factValueOption.isEmpty
+  }
+
   final def entityAspectValue: EntityAspectValue = {
     aspectValueSet.findEntityAspectValue
       .getOrElse(sys.error(s"Missing entity aspect in fact with ID ${idOption.getOrElse("")}"))
