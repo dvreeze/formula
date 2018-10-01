@@ -187,3 +187,62 @@ final case class TupleFact(
     }
   }
 }
+
+object NonNumericSimpleFact {
+
+  /**
+   * Factory method like apply, but adding default aspect values and validating the aspect values.
+   */
+  def from(
+    idOption: Option[String],
+    aspectValueSet: AspectValueSet,
+    factValue: SimpleFactValue): NonNumericSimpleFact = {
+
+    NonNumericSimpleFact(
+      idOption,
+      aspectValueSet
+        .addDefaultsForNonNumericSimpleFacts
+        .validatedForNonNumericSimpleFacts,
+      factValue)
+  }
+}
+
+object NumericSimpleFact {
+
+  /**
+   * Factory method like apply, but adding default aspect values and validating the aspect values.
+   */
+  def from(
+    idOption: Option[String],
+    aspectValueSet: AspectValueSet,
+    factValue: SimpleFactValue,
+    accuracy: Accuracy): NumericSimpleFact = {
+
+    NumericSimpleFact(
+      idOption,
+      aspectValueSet
+        .addDefaultsForNumericSimpleFacts
+        .validatedForNumericSimpleFacts,
+      factValue,
+      accuracy)
+  }
+}
+
+object TupleFact {
+
+  /**
+   * Factory method like apply, but adding default aspect values and validating the aspect values.
+   */
+  def from(
+    idOption: Option[String],
+    aspectValueSet: AspectValueSet,
+    childFacts: immutable.IndexedSeq[Fact]): TupleFact = {
+
+    TupleFact(
+      idOption,
+      aspectValueSet
+        .addDefaultsForTupleFacts
+        .validatedForTupleFacts,
+      childFacts)
+  }
+}

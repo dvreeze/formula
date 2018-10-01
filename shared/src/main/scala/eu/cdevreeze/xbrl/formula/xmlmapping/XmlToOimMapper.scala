@@ -123,9 +123,9 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
     val childFacts = fact.findAllChildFacts.map(f => convertFact(f, xbrlInstance))
 
-    TupleFact(
+    TupleFact.from(
       idOption,
-      AspectValueSet.from(aspectValues).validatedForTupleFacts,
+      AspectValueSet.from(aspectValues),
       childFacts)
   }
 
@@ -150,9 +150,9 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
     val factValue = extractNonNumericFactValue(fact)
 
-    NonNumericSimpleFact(
+    NonNumericSimpleFact.from(
       idOption,
-      AspectValueSet.from(aspectValues).validatedForNonNumericSimpleFacts,
+      AspectValueSet.from(aspectValues),
       factValue)
   }
 
@@ -184,9 +184,9 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
     val accuracy = extractAccuracy(fact)
 
-    NumericSimpleFact(
+    NumericSimpleFact.from(
       idOption,
-      AspectValueSet.from(aspectValues).validatedForNumericSimpleFacts,
+      AspectValueSet.from(aspectValues),
       factValue,
       accuracy)
   }
