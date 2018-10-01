@@ -125,7 +125,7 @@ final case class ExplicitDimensionAspectValue(
 
 final case class TypedDimensionAspectValue(
   aspect: TypedDimensionAspect,
-  member: TypedDimensionMember) extends DimensionAspectValue {
+  member: SimpleValue) extends DimensionAspectValue {
 
   type AspectType = TypedDimensionAspect
 }
@@ -161,7 +161,7 @@ object ExplicitDimensionAspectValue {
 
 object TypedDimensionAspectValue {
 
-  def apply(dimension: EName, member: TypedDimensionMember): TypedDimensionAspectValue = {
+  def apply(dimension: EName, member: SimpleValue): TypedDimensionAspectValue = {
     TypedDimensionAspectValue(TypedDimensionAspect(dimension), member)
   }
 }

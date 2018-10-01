@@ -59,7 +59,10 @@ sealed trait Fact {
 
 sealed trait SimpleFact extends Fact {
 
-  def factValue: SimpleFactValue
+  /**
+   * Returns the optional fact value, which is empty if nil.
+   */
+  def factValueOption: Option[SimpleValue]
 
   final def entityAspectValue: EntityAspectValue = {
     aspectValueSet.findEntityAspectValue
@@ -122,12 +125,12 @@ sealed trait SimpleFact extends Fact {
 final case class NonNumericSimpleFact(
   idOption: Option[String],
   aspectValueSet: AspectValueSet,
-  factValue: SimpleFactValue) extends SimpleFact
+  factValueOption: Option[SimpleValue]) extends SimpleFact
 
 final case class NumericSimpleFact(
   idOption: Option[String],
   aspectValueSet: AspectValueSet,
-  factValue: SimpleFactValue,
+  factValueOption: Option[SimpleValue],
   accuracy: Accuracy) extends SimpleFact {
 
   def unitAspectValue: UnitAspectValue = {
@@ -196,14 +199,14 @@ object NonNumericSimpleFact {
   def from(
     idOption: Option[String],
     aspectValueSet: AspectValueSet,
-    factValue: SimpleFactValue): NonNumericSimpleFact = {
+    factValueOption: Option[SimpleValue]): NonNumericSimpleFact = {
 
     NonNumericSimpleFact(
       idOption,
       aspectValueSet
         .addDefaultsForNonNumericSimpleFacts
         .validatedForNonNumericSimpleFacts,
-      factValue)
+      factValueOption)
   }
 }
 
@@ -215,7 +218,7 @@ object NumericSimpleFact {
   def from(
     idOption: Option[String],
     aspectValueSet: AspectValueSet,
-    factValue: SimpleFactValue,
+    factValueOption: Option[SimpleValue],
     accuracy: Accuracy): NumericSimpleFact = {
 
     NumericSimpleFact(
@@ -223,7 +226,7 @@ object NumericSimpleFact {
       aspectValueSet
         .addDefaultsForNumericSimpleFacts
         .validatedForNumericSimpleFacts,
-      factValue,
+      factValueOption,
       accuracy)
   }
 }

@@ -26,7 +26,6 @@ import scala.math.log10
 import eu.cdevreeze.tqa.base.queryapi.TaxonomyApi
 import eu.cdevreeze.tqa.ENames
 import eu.cdevreeze.tqa.Namespaces
-import eu.cdevreeze.tqa.XsdBooleans
 import eu.cdevreeze.tqa.instance
 import eu.cdevreeze.yaidom.core.EName
 import eu.cdevreeze.yaidom.queryapi.BackingNodes
@@ -51,12 +50,11 @@ import eu.cdevreeze.xbrl.formula.oim.Report
 import eu.cdevreeze.xbrl.formula.oim.RoleReference
 import eu.cdevreeze.xbrl.formula.oim.SchemaReference
 import eu.cdevreeze.xbrl.formula.oim.SimpleFact
-import eu.cdevreeze.xbrl.formula.oim.SimpleFactValue
+import eu.cdevreeze.xbrl.formula.oim.SimpleValue
 import eu.cdevreeze.xbrl.formula.oim.TupleFact
 import eu.cdevreeze.xbrl.formula.oim.TupleOrderAspectValue
 import eu.cdevreeze.xbrl.formula.oim.TupleParentAspectValue
 import eu.cdevreeze.xbrl.formula.oim.TypedDimensionAspectValue
-import eu.cdevreeze.xbrl.formula.oim.TypedDimensionMember
 import eu.cdevreeze.xbrl.formula.oim.UnitAspectValue
 import eu.cdevreeze.xbrl.formula.oim.ZonedTimeInterval
 
@@ -148,12 +146,12 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
         tupleOrderAspectValue,
         languageAspectValue).union(aspectValuesFromContext)
 
-    val factValue = extractNonNumericFactValue(fact)
+    val factValueOption = extractNonNumericFactValueOption(fact)
 
     NonNumericSimpleFact.from(
       idOption,
       AspectValueSet.from(aspectValues),
-      factValue)
+      factValueOption)
   }
 
   def convertNumericItemFact(fact: instance.NumericItemFact, xbrlInstance: instance.XbrlInstance): NumericSimpleFact = {
@@ -170,24 +168,22 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
     val conceptAspectValue = extractConceptAspectValueFromFact(fact)
     val tupleParentAspectValue = extractTupleParentAspectValueFromFact(fact)
     val tupleOrderAspectValue = extractTupleOrderAspectValueFromFact(fact)
-    val languageAspectValue = LanguageAspectValue(None)
 
     val aspectValues =
       Set[AspectValue](
         conceptAspectValue,
         tupleParentAspectValue,
         tupleOrderAspectValue,
-        languageAspectValue,
         unitAspectValue).union(aspectValuesFromContext)
 
-    val factValue = extractNumericFactValue(fact)
+    val factValueOption = extractNumericFactValueOption(fact)
 
     val accuracy = extractAccuracy(fact)
 
     NumericSimpleFact.from(
       idOption,
       AspectValueSet.from(aspectValues),
-      factValue,
+      factValueOption,
       accuracy)
   }
 
@@ -340,7 +336,7 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
   // Private methods
 
-  private def extractTypedDimensionMember(dimension: EName, memberElem: instance.XbrliElem): TypedDimensionMember = {
+  private def extractTypedDimensionMember(dimension: EName, memberElem: instance.XbrliElem): SimpleValue = {
     require(
       memberElem.findAllChildElems.isEmpty,
       s"Typed members with child elements not supported in OIM. Path: ${memberElem.backingElem.absolutePath}")
@@ -356,31 +352,9 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
         dts.findBaseTypeOrSelfUntil(tp, _.namespaceUriOption.contains(Namespaces.XsNamespace))
       }
 
-    val isBoolean = baseTypeOption.contains(ENames.XsBooleanEName)
-
-    val isDecimal = baseTypeOption.map(tp => isDecimalType(tp)).getOrElse(false)
-
     val memberText = memberElem.text
 
-    if (isBoolean) {
-      TypedDimensionMember.BooleanValue(XsdBooleans.parseBoolean(memberText.trim))
-    } else if (isDecimal) {
-      TypedDimensionMember.NumericValue(BigDecimal(memberText.trim))
-    } else {
-      TypedDimensionMember.StringValue(memberText) // No trimming ever for strings?
-    }
-  }
-
-  private def isDecimalType(tpe: EName): Boolean = {
-    // See https://www.w3.org/TR/xmlschema-2/
-
-    tpe == ENames.XsDecimalEName || tpe == ENames.XsIntegerEName ||
-      tpe == ENames.XsNonPositiveIntegerEName || tpe == ENames.XsLongEName ||
-      tpe == ENames.XsNonNegativeIntegerEName || tpe == ENames.XsIntEName ||
-      tpe == ENames.XsShortEName || tpe == ENames.XsByteEName ||
-      tpe == ENames.XsNegativeIntegerEName || tpe == ENames.XsPositiveIntegerEName ||
-      tpe == ENames.XsUnsignedLongEName || tpe == ENames.XsUnsignedIntEName ||
-      tpe == ENames.XsUnsignedShortEName || tpe == ENames.XsUnsignedByteEName
+    SimpleValue.parse(memberText, baseTypeOption.getOrElse(ENames.XsStringEName))
   }
 
   private def extractOptionalLanguage(elem: BackingNodes.Elem): Option[String] = {
@@ -394,9 +368,9 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
     }
   }
 
-  private def extractNonNumericFactValue(itemFact: instance.NonNumericItemFact): SimpleFactValue = {
+  private def extractNonNumericFactValueOption(itemFact: instance.NonNumericItemFact): Option[SimpleValue] = {
     if (itemFact.isNil) {
-      SimpleFactValue.Nil
+      None
     } else {
       val itemDecl = dts.getItemDeclaration(itemFact.resolvedName)
 
@@ -404,26 +378,24 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
       val typeOption: Option[EName] = itemDecl.globalElementDeclaration.typeOption
 
+      // TODO Stop at xbrli base type, and turn that into its built-in schema base type.
+
       val baseTypeOption: Option[EName] =
         typeOption.flatMap { tp =>
           dts.findBaseTypeOrSelfUntil(tp, _.namespaceUriOption.contains(Namespaces.XsNamespace))
         }
 
-      val isBoolean = baseTypeOption.contains(ENames.XsBooleanEName)
-
       val rawFactValue = itemFact.text
 
-      if (isBoolean) {
-        SimpleFactValue.BooleanValue(XsdBooleans.parseBoolean(rawFactValue.trim))
-      } else {
-        SimpleFactValue.StringValue(rawFactValue) // No trimming ever for strings?
-      }
+      val simpleValue =
+        SimpleValue.parse(rawFactValue, baseTypeOption.getOrElse(ENames.XsStringEName))
+      Some(simpleValue)
     }
   }
 
-  private def extractNumericFactValue(itemFact: instance.NumericItemFact): SimpleFactValue = {
+  private def extractNumericFactValueOption(itemFact: instance.NumericItemFact): Option[SimpleValue] = {
     if (itemFact.isNil) {
-      SimpleFactValue.Nil
+      None
     } else {
       val itemDecl = dts.getItemDeclaration(itemFact.resolvedName)
 
@@ -431,20 +403,18 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
       val typeOption: Option[EName] = itemDecl.globalElementDeclaration.typeOption
 
+      // TODO Stop at xbrli base type, and turn that into its built-in schema base type.
+
       val baseTypeOption: Option[EName] =
         typeOption.flatMap { tp =>
           dts.findBaseTypeOrSelfUntil(tp, _.namespaceUriOption.contains(Namespaces.XsNamespace))
         }
 
-      val isDecimal = baseTypeOption.map(tp => isDecimalType(tp)).getOrElse(false)
-
       val rawFactValue = itemFact.text
 
-      if (isDecimal) {
-        SimpleFactValue.NumericValue(BigDecimal(rawFactValue.trim))
-      } else {
-        SimpleFactValue.StringValue(rawFactValue) // No trimming ever for strings?
-      }
+      val simpleValue =
+        SimpleValue.parse(rawFactValue, baseTypeOption.getOrElse(ENames.XsStringEName))
+      Some(simpleValue)
     }
   }
 

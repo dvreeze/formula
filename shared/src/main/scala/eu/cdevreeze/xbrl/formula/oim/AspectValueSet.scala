@@ -227,7 +227,7 @@ final class AspectValueSet private (val aspectValueMap: Map[Aspect, AspectValue]
     withDimension(ExplicitDimensionAspectValue(dim, member))
   }
 
-  def withTypedDimension(dim: EName, member: TypedDimensionMember): AspectValueSet = {
+  def withTypedDimension(dim: EName, member: SimpleValue): AspectValueSet = {
     withDimension(TypedDimensionAspectValue(dim, member))
   }
 
