@@ -302,20 +302,12 @@ object AspectValueSet {
 
   val Empty = new AspectValueSet(Map.empty)
 
-  def apply(aspectValueMap: Map[Aspect, AspectValue]): AspectValueSet = {
-    require(
-      aspectValueMap.forall(kv => kv._1 == kv._2.aspect),
-      s"Mismatch between aspects and aspect values in '$aspectValueMap'")
-
-    new AspectValueSet(aspectValueMap)
-  }
-
   /**
    * Creates an AspectValueSet from the given aspect values. If there are duplicate aspects,
    * it is undefined which aspect value for that aspect wins.
    */
   def from(aspectValues: Set[AspectValue]): AspectValueSet = {
     val aspectValueMap = aspectValues.toSeq.groupBy(_.aspect.asInstanceOf[Aspect]).mapValues(_.head)
-    apply(aspectValueMap)
+    new AspectValueSet(aspectValueMap)
   }
 }
