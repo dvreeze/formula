@@ -18,6 +18,7 @@ package eu.cdevreeze.xbrl.formula.oim
 
 import scala.collection.immutable
 
+import eu.cdevreeze.yaidom.core.EName
 import eu.cdevreeze.yaidom.core.Path
 
 /**
@@ -28,11 +29,16 @@ import eu.cdevreeze.yaidom.core.Path
  *
  * This is therefore not a case class, and has no value equality!
  *
+ * This class also has some fast query methods, for example, to find facts by concept name.
+ *
  * @author Chris de Vreeze
  */
-final class Report(
+final class Report private (
   val dtsReferences: immutable.IndexedSeq[DtsReference],
-  val topLevelFacts: immutable.IndexedSeq[Fact]) {
+  val topLevelFacts: immutable.IndexedSeq[Fact],
+  val allFacts: immutable.IndexedSeq[Fact],
+  conceptFactMap: Map[EName, immutable.IndexedSeq[Fact]],
+  periodSimpleFactMap: Map[PeriodValue, immutable.IndexedSeq[SimpleFact]]) {
 
   def topLevelSimpleFacts: immutable.IndexedSeq[SimpleFact] = {
     topLevelFacts.collect { case f: SimpleFact => f }
@@ -42,11 +48,34 @@ final class Report(
     topLevelFacts.collect { case f: TupleFact => f }
   }
 
-  def allFacts: immutable.IndexedSeq[Fact] = {
-    topLevelFacts.flatMap {
-      case f: SimpleFact => immutable.IndexedSeq(f)
-      case f: TupleFact => f +: f.descendantFacts
-    }
+  def allSimpleFacts = allFacts.collect { case f: SimpleFact => f }
+
+  /**
+   * Finds all facts having the given concept name. This is a very fast method, using a Map lookup.
+   */
+  def findFactsByName(conceptName: EName): immutable.IndexedSeq[Fact] = {
+    conceptFactMap.getOrElse(conceptName, immutable.IndexedSeq())
+  }
+
+  /**
+   * Finds all simple facts having the given concept name. This is a very fast method, using a Map lookup.
+   */
+  def findSimpleFactsByName(conceptName: EName): immutable.IndexedSeq[SimpleFact] = {
+    findFactsByName(conceptName).collect { case f: SimpleFact => f }
+  }
+
+  /**
+   * Finds all tuple facts having the given concept name. This is a very fast method, using a Map lookup.
+   */
+  def findTupleFactsByName(conceptName: EName): immutable.IndexedSeq[TupleFact] = {
+    findFactsByName(conceptName).collect { case f: TupleFact => f }
+  }
+
+  /**
+   * Finds all simple facts having the given period value. This is a very fast method, using a Map lookup.
+   */
+  def findSimpleFactsByPeriod(periodValue: PeriodValue): immutable.IndexedSeq[SimpleFact] = {
+    periodSimpleFactMap.getOrElse(periodValue, immutable.IndexedSeq())
   }
 
   def aspectUniverse: Set[Aspect] = {
@@ -78,5 +107,36 @@ final class Report(
     findNestedFact(relativePath, orderInParentTuple).getOrElse {
       sys.error(s"No nested fact found at path $relativePath and 0-based order in parent $orderInParentTuple")
     }
+  }
+}
+
+object Report {
+
+  /**
+   * Creates a Report from the given parameters. This is a rather expensive creation method.
+   */
+  def build(
+    dtsReferences: immutable.IndexedSeq[DtsReference],
+    topLevelFacts: immutable.IndexedSeq[Fact]): Report = {
+
+    val allFacts: immutable.IndexedSeq[Fact] = {
+      topLevelFacts.flatMap {
+        case f: SimpleFact => immutable.IndexedSeq(f)
+        case f: TupleFact => f +: f.descendantFacts
+      }
+    }
+
+    val conceptFactMap = allFacts.groupBy(_.conceptName)
+
+    val allSimpleFacts = allFacts.collect { case f: SimpleFact => f }
+
+    val periodSimpleFactMap = allSimpleFacts.groupBy(_.periodAspectValue.periodValue)
+
+    new Report(
+      dtsReferences,
+      topLevelFacts,
+      allFacts,
+      conceptFactMap,
+      periodSimpleFactMap)
   }
 }

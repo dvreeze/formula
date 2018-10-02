@@ -133,6 +133,14 @@ class AspectValueTest extends FunSuite {
     assertResult(expectedLastFact) {
       lastFact
     }
+
+    assertResult(1) {
+      report.findFactsByName(EName(ns, "m4")).size
+    }
+
+    assertResult(1) {
+      report.findSimpleFactsByPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 4, 4))).size
+    }
   }
 
   test("testTupleParentAspect") {

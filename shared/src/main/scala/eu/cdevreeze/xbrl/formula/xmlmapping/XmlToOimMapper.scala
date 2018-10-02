@@ -89,7 +89,7 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
     val topLevelFacts = xbrlInstance.findAllTopLevelFacts.map(f => convertFact(f, xbrlInstance))
 
-    new Report(dtsReferences, topLevelFacts)
+    Report.build(dtsReferences, topLevelFacts)
   }
 
   def convertFact(fact: instance.Fact, xbrlInstance: instance.XbrlInstance): Fact = {
