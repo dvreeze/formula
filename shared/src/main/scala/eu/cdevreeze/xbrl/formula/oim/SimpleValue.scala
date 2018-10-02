@@ -42,7 +42,10 @@ import eu.cdevreeze.yaidom.core.EName
  *
  * @author Chris de Vreeze
  */
-sealed trait SimpleValue
+sealed trait SimpleValue {
+
+  def value: Any
+}
 
 /**
  * A value corresponding to type xs:string, or one of its sub-types. If the value is of type xs:normalizedString

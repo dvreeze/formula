@@ -21,6 +21,9 @@ import java.net.URI
 import java.time.LocalDate
 import java.util.zip.ZipFile
 
+import scala.collection.immutable
+import scala.math.BigDecimal
+
 import org.scalatest.FunSuite
 
 import eu.cdevreeze.tqa.base.relationship.DefaultRelationshipFactory
@@ -188,6 +191,79 @@ class AspectValueTest extends FunSuite {
             report.getNestedFact(tuplePath, orderInTuple.getOrElse(1000000))
         }
     }
+  }
+
+  test("testSimulatedFormula") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/40000%20Filters/49210-RelativeFilter-Processing-Dimensional/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("49210-restatementFilter-instance.xml")
+
+    val xbrlInstance: XbrlInstance =
+      XbrlInstanceDocument.build(docBuilder.build(instanceUri)).documentElement
+
+    val taxo =
+      makeTestDts(
+        xbrlInstance.findAllSchemaRefs.map(_.resolvedHref).toSet
+          .union(xbrlInstance.findAllLinkbaseRefs.map(_.resolvedHref).toSet))
+
+    val oimMapper = new XmlToOimMapper(taxo)
+
+    val report = oimMapper.convertXbrlInstance(xbrlInstance)
+
+    val aspectUniverse = report.aspectUniverse
+
+    val ns = "http://xbrl.org/formula/conformance/example"
+
+    // Simulate formula in 49210-restatementFilter-formula.xml
+
+    // Use (fast) concept name filter for factVarStock, and use the knowledge that it matches only numeric simple facts.
+    // Now we probably have a small sequence of fact values for this fact variable to process.
+
+    val stockFacts = report.findNumericSimpleFactsByName(EName(ns, "stock"))
+
+    // Use (fast) concept name filter for factVarFlow, knowing that it matches only numeric simple facts.
+    // Now we probably have a small sequence of fact values for this fact variable to process.
+
+    val flowFacts = report.findNumericSimpleFactsByName(EName(ns, "flow"))
+
+    // Note that implicit filtering is switched off
+
+    // Now use the other 3 filters for factVarStock
+
+    val restatementAxisAspect = TypedDimensionAspect(EName(ns, "restatementAxis"))
+
+    val resultFacts: immutable.IndexedSeq[SimpleFact] =
+      for {
+        stockFact <- stockFacts
+        flowFact <- flowFacts
+        if flowFact.periodAspectValue.isDuration &&
+          stockFact.periodAspectValue.isInstant &&
+          flowFact.periodAspectValue.periodValue.asTimeInterval.start == stockFact.periodAspectValue.periodValue.asTimeInterval.end
+        if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension).map(_.member.value.toString).getOrElse("").nonEmpty
+        if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension)
+          .map(v => LocalTimeInterval.fromLocalDate(LocalDate.parse(v.member.value.toString))).contains(
+            flowFact.periodAspectValue.periodValue.asTimeInterval.atEnd)
+        uncoveredAspects = aspectUniverse.diff(Set[Aspect](ConceptAspect, PeriodAspect, restatementAxisAspect))
+        if stockFact.aspectValueSet.filteringAspects(uncoveredAspects) == flowFact.aspectValueSet.filteringAspects(uncoveredAspects)
+      } yield {
+        NumericSimpleFact.from(
+          None,
+          AspectValueSet.Empty
+            .withConcept(EName(ns, "stock"))
+            .withEntity(stockFact.entityAspectValue)
+            .withPeriod(flowFact.periodAspectValue.periodValue.asTimeInterval.atEnd)
+            .withUnit(stockFact.unitAspectValue),
+          Some(NumericValue(
+            stockFact.factValueOption.get.asInstanceOf[NumericValue].value +
+              flowFact.factValueOption.get.asInstanceOf[NumericValue].value)),
+          Accuracy.Infinity)
+      }
+
+    assertResult(2) {
+      resultFacts.size
+    }
+
+    // TODO Real checks
   }
 
   private def makeTestDts(entryPointUris: Set[URI]): BasicTaxonomy = {

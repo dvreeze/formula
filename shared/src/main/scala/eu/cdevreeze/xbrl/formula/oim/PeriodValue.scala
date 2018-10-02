@@ -19,6 +19,7 @@ package eu.cdevreeze.xbrl.formula.oim
 import java.time.LocalDate
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
+import java.time.temporal.Temporal
 
 /**
  * Period value, so either Forever or a time interval (with or without timezone).
@@ -27,15 +28,56 @@ import java.time.ZonedDateTime
  *
  * @author Chris de Vreeze
  */
-sealed trait PeriodValue
+sealed trait PeriodValue {
 
-case object Forever extends PeriodValue
+  def isInstant: Boolean
 
-sealed trait TimeInterval extends PeriodValue
+  final def isDuration: Boolean = !isInstant
 
-final case class LocalTimeInterval(start: LocalDateTime, end: LocalDateTime) extends TimeInterval
+  final def isForever: Boolean = this == Forever
 
-final case class ZonedTimeInterval(start: ZonedDateTime, end: ZonedDateTime) extends TimeInterval
+  final def isTimeInterval: Boolean = !isForever
+
+  def asTimeInterval: TimeInterval
+}
+
+case object Forever extends PeriodValue {
+
+  def isInstant: Boolean = false
+
+  def asTimeInterval: TimeInterval = sys.error("Not a time interval but 'forever'")
+}
+
+sealed trait TimeInterval extends PeriodValue {
+
+  def start: Temporal
+
+  def end: Temporal
+
+  final def asTimeInterval: TimeInterval = this
+
+  def atStart: TimeInterval
+
+  def atEnd: TimeInterval
+}
+
+final case class LocalTimeInterval(start: LocalDateTime, end: LocalDateTime) extends TimeInterval {
+
+  def isInstant: Boolean = (start == end)
+
+  def atStart: LocalTimeInterval = LocalTimeInterval(start, start)
+
+  def atEnd: LocalTimeInterval = LocalTimeInterval(end, end)
+}
+
+final case class ZonedTimeInterval(start: ZonedDateTime, end: ZonedDateTime) extends TimeInterval {
+
+  def isInstant: Boolean = (start == end)
+
+  def atStart: ZonedTimeInterval = ZonedTimeInterval(start, start)
+
+  def atEnd: ZonedTimeInterval = ZonedTimeInterval(end, end)
+}
 
 object LocalTimeInterval {
 

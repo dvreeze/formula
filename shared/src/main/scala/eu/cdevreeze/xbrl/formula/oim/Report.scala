@@ -65,6 +65,13 @@ final class Report private (
   }
 
   /**
+   * Finds all numeric simple facts having the given concept name. This is a very fast method, using a Map lookup.
+   */
+  def findNumericSimpleFactsByName(conceptName: EName): immutable.IndexedSeq[NumericSimpleFact] = {
+    findFactsByName(conceptName).collect { case f: NumericSimpleFact => f }
+  }
+
+  /**
    * Finds all tuple facts having the given concept name. This is a very fast method, using a Map lookup.
    */
   def findTupleFactsByName(conceptName: EName): immutable.IndexedSeq[TupleFact] = {
@@ -76,6 +83,13 @@ final class Report private (
    */
   def findSimpleFactsByPeriod(periodValue: PeriodValue): immutable.IndexedSeq[SimpleFact] = {
     periodSimpleFactMap.getOrElse(periodValue, immutable.IndexedSeq())
+  }
+
+  /**
+   * Finds all numeric simple facts having the given period value. This is a very fast method, using a Map lookup.
+   */
+  def findNumericSimpleFactsByPeriod(periodValue: PeriodValue): immutable.IndexedSeq[NumericSimpleFact] = {
+    findSimpleFactsByPeriod(periodValue).collect { case f: NumericSimpleFact => f }
   }
 
   def aspectUniverse: Set[Aspect] = {

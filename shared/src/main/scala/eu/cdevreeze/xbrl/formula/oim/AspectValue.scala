@@ -66,6 +66,10 @@ final case class PeriodAspectValue(periodValue: PeriodValue) extends CoreAspectV
   type AspectType = PeriodAspect.type
 
   def aspect: AspectType = PeriodAspect
+
+  def isInstant: Boolean = periodValue.isInstant
+
+  def isDuration: Boolean = periodValue.isDuration
 }
 
 final case class UnitAspectValue(numerators: Set[EName], denominators: Set[EName]) extends CoreAspectValue {
