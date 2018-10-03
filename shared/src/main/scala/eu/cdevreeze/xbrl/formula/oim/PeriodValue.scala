@@ -34,11 +34,17 @@ sealed trait PeriodValue {
 
   final def isDuration: Boolean = !isInstant
 
+  final def isFiniteDuration: Boolean = isDuration && !isForever
+
   final def isForever: Boolean = this == Forever
 
   final def isTimeInterval: Boolean = !isForever
 
   def asTimeInterval: TimeInterval
+
+  final def asOptionalTimeInterval: Option[TimeInterval] = {
+    if (isTimeInterval) Some(asTimeInterval) else None
+  }
 }
 
 case object Forever extends PeriodValue {

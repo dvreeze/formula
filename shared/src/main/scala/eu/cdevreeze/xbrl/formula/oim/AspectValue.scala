@@ -70,6 +70,14 @@ final case class PeriodAspectValue(periodValue: PeriodValue) extends CoreAspectV
   def isInstant: Boolean = periodValue.isInstant
 
   def isDuration: Boolean = periodValue.isDuration
+
+  def isFiniteDuration: Boolean = periodValue.isFiniteDuration
+
+  def isForever: Boolean = periodValue.isForever
+
+  def asTimeInterval: TimeInterval = periodValue.asTimeInterval
+
+  def asOptionalTimeInterval: Option[TimeInterval] = periodValue.asOptionalTimeInterval
 }
 
 final case class UnitAspectValue(numerators: Set[EName], denominators: Set[EName]) extends CoreAspectValue {

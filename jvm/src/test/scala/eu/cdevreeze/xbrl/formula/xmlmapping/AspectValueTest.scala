@@ -70,14 +70,14 @@ class AspectValueTest extends FunSuite {
     val ns = "http://xbrl.org/formula/conformance/example"
 
     assertResult(xbrlInstance.findAllTopLevelFacts.size) {
-      report.topLevelFacts.size
+      report.findAllTopLevelFacts.size
     }
 
     assertResult(Vector("m1", "m2", "m3", "m4").map(s => EName(ns, s))) {
-      report.topLevelFacts.map(_.conceptName)
+      report.findAllTopLevelFacts.map(_.conceptName)
     }
 
-    val firstFact = report.topLevelFacts(0)
+    val firstFact = report.findAllTopLevelFacts(0)
 
     assertResult(true) {
       firstFact.isInstanceOf[NumericSimpleFact]
@@ -112,7 +112,7 @@ class AspectValueTest extends FunSuite {
           .withConcept(EName(ns, "m1"))
           .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "AAA001")
           .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 1, 1)))
-          .withUnit(UnitAspectValue.fromNumerators(Set(EName(Iso4217Namespace, "JPY")))),
+          .withUnit(Set(EName(Iso4217Namespace, "JPY"))),
         Some(NumericValue(BigDecimal(10000))),
         Accuracy.Infinity)
 
@@ -120,7 +120,7 @@ class AspectValueTest extends FunSuite {
       firstFact
     }
 
-    val lastFact = report.topLevelFacts.last
+    val lastFact = report.findAllTopLevelFacts.last
 
     val expectedLastFact =
       NumericSimpleFact.from(
@@ -129,7 +129,7 @@ class AspectValueTest extends FunSuite {
           .withConcept(EName(ns, "m4"))
           .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "DDD004")
           .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 4, 4)))
-          .withUnit(UnitAspectValue.fromNumerators(Set(EName(Iso4217Namespace, "TOP")))),
+          .withUnit(Set(EName(Iso4217Namespace, "TOP"))),
         Some(NumericValue(BigDecimal(40))),
         Accuracy.Infinity)
 
@@ -165,7 +165,7 @@ class AspectValueTest extends FunSuite {
 
     val ns = "http://xbrl.org/formula/conformance/example"
 
-    val nestedFacts = report.topLevelTupleFacts.flatMap(_.descendantFacts)
+    val nestedFacts = report.findAllTopLevelTupleFacts.flatMap(_.findAllDescendantFacts)
 
     assertResult(2) {
       nestedFacts.size
@@ -236,26 +236,27 @@ class AspectValueTest extends FunSuite {
       for {
         stockFact <- stockFacts
         flowFact <- flowFacts
-        if flowFact.periodAspectValue.isDuration &&
+        if flowFact.periodAspectValue.isFiniteDuration &&
           stockFact.periodAspectValue.isInstant &&
-          flowFact.periodAspectValue.periodValue.asTimeInterval.start == stockFact.periodAspectValue.periodValue.asTimeInterval.end
-        if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension).map(_.member.value.toString).getOrElse("").nonEmpty
+          flowFact.periodAspectValue.asTimeInterval.start == stockFact.periodAspectValue.asTimeInterval.end
+        if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension).map(_.member).exists(_.nonEmpty)
         if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension)
           .map(v => LocalTimeInterval.fromLocalDate(LocalDate.parse(v.member.value.toString))).contains(
-            flowFact.periodAspectValue.periodValue.asTimeInterval.atEnd)
-        uncoveredAspects = aspectUniverse.diff(Set[Aspect](ConceptAspect, PeriodAspect, restatementAxisAspect))
-        if stockFact.aspectValueSet.filteringAspects(uncoveredAspects) == flowFact.aspectValueSet.filteringAspects(uncoveredAspects)
+            flowFact.periodAspectValue.asTimeInterval.atEnd)
+        uncoveredAspects = aspectUniverse.diff(Set(ConceptAspect, PeriodAspect, restatementAxisAspect))
+        if stockFact.aspectValueSet.filteringAspects(uncoveredAspects) ==
+          flowFact.aspectValueSet.filteringAspects(uncoveredAspects)
       } yield {
         NumericSimpleFact.from(
           None,
           AspectValueSet.Empty
             .withConcept(EName(ns, "stock"))
             .withEntity(stockFact.entityAspectValue)
-            .withPeriod(flowFact.periodAspectValue.periodValue.asTimeInterval.atEnd)
+            .withPeriod(flowFact.periodAspectValue.asTimeInterval.atEnd)
             .withUnit(stockFact.unitAspectValue),
           Some(NumericValue(
-            stockFact.factValueOption.get.asInstanceOf[NumericValue].value +
-              flowFact.factValueOption.get.asInstanceOf[NumericValue].value)),
+            stockFact.factValueOption.get.asBigDecimal +
+              flowFact.factValueOption.get.asBigDecimal)),
           Accuracy.Infinity)
       }
 

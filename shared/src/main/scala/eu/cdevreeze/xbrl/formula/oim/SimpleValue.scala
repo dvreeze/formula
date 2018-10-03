@@ -45,6 +45,48 @@ import eu.cdevreeze.yaidom.core.EName
 sealed trait SimpleValue {
 
   def value: Any
+
+  final def isEmpty: Boolean = value.toString.isEmpty
+
+  final def nonEmpty: Boolean = !isEmpty
+
+  final def asOptionalBigDecimal: Option[BigDecimal] = this match {
+    case v: NumericValue => Some(v.value)
+    case _ => None
+  }
+
+  final def asBigDecimal: BigDecimal = {
+    asOptionalBigDecimal.getOrElse(BigDecimal(0))
+  }
+
+  final def asOptionalBoolean: Option[Boolean] = this match {
+    case v: BooleanValue => Some(v.value)
+    case _ => None
+  }
+
+  final def asBoolean: Boolean = {
+    asOptionalBoolean.getOrElse(false)
+  }
+
+  final def asOptionalLocalDateTime: Option[LocalDateTime] = this match {
+    case v: LocalDateTimeValue => Some(v.value)
+    case _ => None
+  }
+
+  final def asOptionalZonedDateTime: Option[ZonedDateTime] = this match {
+    case v: ZonedDateTimeValue => Some(v.value)
+    case _ => None
+  }
+
+  final def asOptionalLocalDate: Option[LocalDate] = this match {
+    case v: LocalDateValue => Some(v.value)
+    case _ => None
+  }
+
+  final def asOptionalLocalTime: Option[LocalTime] = this match {
+    case v: LocalTimeValue => Some(v.value)
+    case _ => None
+  }
 }
 
 /**

@@ -34,21 +34,33 @@ import eu.cdevreeze.yaidom.core.Path
  * @author Chris de Vreeze
  */
 final class Report private (
-  val dtsReferences: immutable.IndexedSeq[DtsReference],
-  val topLevelFacts: immutable.IndexedSeq[Fact],
-  val allFacts: immutable.IndexedSeq[Fact],
+  dtsReferences: immutable.IndexedSeq[DtsReference],
+  topLevelFacts: immutable.IndexedSeq[Fact],
+  allFacts: immutable.IndexedSeq[Fact],
   conceptFactMap: Map[EName, immutable.IndexedSeq[Fact]],
   periodSimpleFactMap: Map[PeriodValue, immutable.IndexedSeq[SimpleFact]]) {
 
-  def topLevelSimpleFacts: immutable.IndexedSeq[SimpleFact] = {
+  def findAllTopLevelFacts: immutable.IndexedSeq[Fact] = topLevelFacts
+
+  def findAllTopLevelSimpleFacts: immutable.IndexedSeq[SimpleFact] = {
     topLevelFacts.collect { case f: SimpleFact => f }
   }
 
-  def topLevelTupleFacts: immutable.IndexedSeq[TupleFact] = {
+  def findAllTopLevelNumericSimpleFacts: immutable.IndexedSeq[NumericSimpleFact] = {
+    topLevelFacts.collect { case f: NumericSimpleFact => f }
+  }
+
+  def findAllTopLevelTupleFacts: immutable.IndexedSeq[TupleFact] = {
     topLevelFacts.collect { case f: TupleFact => f }
   }
 
-  def allSimpleFacts = allFacts.collect { case f: SimpleFact => f }
+  def findAllFacts = allFacts
+
+  def findAllSimpleFacts = allFacts.collect { case f: SimpleFact => f }
+
+  def findAllNumericSimpleFacts = allFacts.collect { case f: NumericSimpleFact => f }
+
+  def findAllTupleFacts = allFacts.collect { case f: TupleFact => f }
 
   /**
    * Finds all facts having the given concept name. This is a very fast method, using a Map lookup.
@@ -122,6 +134,8 @@ final class Report private (
       sys.error(s"No nested fact found at path $relativePath and 0-based order in parent $orderInParentTuple")
     }
   }
+
+  def findAllDtsReferences: immutable.IndexedSeq[DtsReference] = dtsReferences
 }
 
 object Report {
@@ -136,7 +150,7 @@ object Report {
     val allFacts: immutable.IndexedSeq[Fact] = {
       topLevelFacts.flatMap {
         case f: SimpleFact => immutable.IndexedSeq(f)
-        case f: TupleFact => f +: f.descendantFacts
+        case f: TupleFact => f +: f.findAllDescendantFacts
       }
     }
 

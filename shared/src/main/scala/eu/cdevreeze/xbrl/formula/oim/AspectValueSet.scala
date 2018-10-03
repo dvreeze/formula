@@ -235,6 +235,14 @@ final class AspectValueSet private (val aspectValueMap: Map[Aspect, AspectValue]
     addOrUpdate(aspectValue)
   }
 
+  def withUnit(numerators: Set[EName], denominators: Set[EName]): AspectValueSet = {
+    withUnit(UnitAspectValue(numerators, denominators))
+  }
+
+  def withUnit(numerators: Set[EName]): AspectValueSet = {
+    withUnit(UnitAspectValue.fromNumerators(numerators))
+  }
+
   // Specific functional updates for different kinds of facts
 
   def addDefaultsForNonNumericSimpleFacts: AspectValueSet = {

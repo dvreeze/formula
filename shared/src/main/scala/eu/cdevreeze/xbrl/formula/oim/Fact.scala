@@ -152,14 +152,26 @@ final case class TupleFact(
   aspectValueSet: AspectValueSet,
   childFacts: immutable.IndexedSeq[Fact]) extends Fact {
 
-  def descendantFacts: immutable.IndexedSeq[Fact] = {
+  def findAllDescendantFacts: immutable.IndexedSeq[Fact] = {
     childFacts.flatMap {
       case simpleFact: SimpleFact =>
         immutable.IndexedSeq(simpleFact)
       case tupleFact: TupleFact =>
         // Recursive call
-        tupleFact +: tupleFact.descendantFacts
+        tupleFact +: tupleFact.findAllDescendantFacts
     }
+  }
+
+  def findAllDescendantSimpleFacts: immutable.IndexedSeq[SimpleFact] = {
+    findAllDescendantFacts.collect { case f: SimpleFact => f }
+  }
+
+  def findAllDescendantNumericSimpleFacts: immutable.IndexedSeq[NumericSimpleFact] = {
+    findAllDescendantFacts.collect { case f: NumericSimpleFact => f }
+  }
+
+  def findAllDescendantTupleFacts: immutable.IndexedSeq[TupleFact] = {
+    findAllDescendantFacts.collect { case f: TupleFact => f }
   }
 
   /**
