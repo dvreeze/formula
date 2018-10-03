@@ -26,6 +26,7 @@ import scala.math.BigDecimal
 
 import org.scalatest.FunSuite
 
+import eu.cdevreeze.tqa.Namespaces
 import eu.cdevreeze.tqa.base.relationship.DefaultRelationshipFactory
 import eu.cdevreeze.tqa.base.taxonomy.BasicTaxonomy
 import eu.cdevreeze.tqa.base.taxonomybuilder.DefaultDtsCollector
@@ -232,39 +233,73 @@ class AspectValueTest extends FunSuite {
 
     val restatementAxisAspect = TypedDimensionAspect(EName(ns, "restatementAxis"))
 
-    val resultFacts: immutable.IndexedSeq[SimpleFact] =
+    val resultFacts: immutable.IndexedSeq[NumericSimpleFact] =
       for {
         stockFact <- stockFacts
         flowFact <- flowFacts
+
         if flowFact.periodAspectValue.isFiniteDuration &&
           stockFact.periodAspectValue.isInstant &&
           flowFact.periodAspectValue.asTimeInterval.start == stockFact.periodAspectValue.asTimeInterval.end
+
         if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension).map(_.member).exists(_.nonEmpty)
         if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension)
           .map(v => LocalTimeInterval.fromLocalDate(LocalDate.parse(v.member.value.toString))).contains(
             flowFact.periodAspectValue.asTimeInterval.atEnd)
+
         uncoveredAspects = aspectUniverse.diff(Set(ConceptAspect, PeriodAspect, restatementAxisAspect))
         if stockFact.aspectValueSet.filteringAspects(uncoveredAspects) ==
           flowFact.aspectValueSet.filteringAspects(uncoveredAspects)
       } yield {
         NumericSimpleFact.from(
           None,
-          AspectValueSet.Empty
-            .withConcept(EName(ns, "stock"))
-            .withEntity(stockFact.entityAspectValue)
-            .withPeriod(flowFact.periodAspectValue.asTimeInterval.atEnd)
-            .withUnit(stockFact.unitAspectValue),
+          stockFact.aspectValueSet
+            .withPeriod(flowFact.periodAspectValue.asTimeInterval.atEnd),
           Some(NumericValue(
             stockFact.factValueOption.get.asBigDecimal +
               flowFact.factValueOption.get.asBigDecimal)),
-          Accuracy.Infinity)
+          FiniteAccuracy(0))
       }
 
     assertResult(2) {
       resultFacts.size
     }
+    assertResult(List(EName(ns, "stock"), EName(ns, "stock"))) {
+      resultFacts.map(_.conceptName)
+    }
+    assertResult(List(BigDecimal(145), BigDecimal(169))) {
+      resultFacts.map(_.factValueOption.map(_.asBigDecimal).getOrElse(BigDecimal(0)))
+    }
+    assertResult(List(Set(EName(Namespaces.XbrliNamespace, "pure")), Set(EName(Namespaces.XbrliNamespace, "pure")))) {
+      resultFacts.map(_.unitAspectValue.numerators)
+    }
 
-    // TODO Real checks
+    val expectedResultFacts =
+      List(
+        NumericSimpleFact.from(
+          None,
+          AspectValueSet.Empty
+            .withConcept(EName(ns, "stock"))
+            .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "01")
+            .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 6, 30)))
+            .withUnit(Set(EName(Namespaces.XbrliNamespace, "pure")))
+            .withTypedDimension(restatementAxisAspect.dimension, StringValue(LocalDate.of(2007, 6, 30).toString)),
+          Some(NumericValue(BigDecimal(145))),
+          FiniteAccuracy(0)),
+        NumericSimpleFact.from(
+          None,
+          AspectValueSet.Empty
+            .withConcept(EName(ns, "stock"))
+            .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "01")
+            .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 12, 31)))
+            .withUnit(Set(EName(Namespaces.XbrliNamespace, "pure")))
+            .withTypedDimension(restatementAxisAspect.dimension, StringValue(LocalDate.of(2007, 12, 31).toString)),
+          Some(NumericValue(BigDecimal(169))),
+          FiniteAccuracy(0)))
+
+    assertResult(expectedResultFacts) {
+      resultFacts
+    }
   }
 
   private def makeTestDts(entryPointUris: Set[URI]): BasicTaxonomy = {
