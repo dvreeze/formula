@@ -21,12 +21,10 @@ import java.net.URI
 import java.time.LocalDate
 import java.util.zip.ZipFile
 
-import scala.collection.immutable
 import scala.math.BigDecimal
 
 import org.scalatest.FunSuite
 
-import eu.cdevreeze.tqa.Namespaces
 import eu.cdevreeze.tqa.base.relationship.DefaultRelationshipFactory
 import eu.cdevreeze.tqa.base.taxonomy.BasicTaxonomy
 import eu.cdevreeze.tqa.base.taxonomybuilder.DefaultDtsCollector
@@ -191,114 +189,6 @@ class AspectValueTest extends FunSuite {
           case (tuplePath, orderInTuple) =>
             report.getNestedFact(tuplePath, orderInTuple.getOrElse(1000000))
         }
-    }
-  }
-
-  test("testSimulatedFormula") {
-    val parentDir = URI.create("conformance-formula-2018-09-13/40000%20Filters/49210-RelativeFilter-Processing-Dimensional/")
-    val parentDirUri = dummyUriPrefix.resolve(parentDir)
-    val instanceUri: URI = parentDirUri.resolve("49210-restatementFilter-instance.xml")
-
-    val xbrlInstance: XbrlInstance =
-      XbrlInstanceDocument.build(docBuilder.build(instanceUri)).documentElement
-
-    val taxo =
-      makeTestDts(
-        xbrlInstance.findAllSchemaRefs.map(_.resolvedHref).toSet
-          .union(xbrlInstance.findAllLinkbaseRefs.map(_.resolvedHref).toSet))
-
-    val oimMapper = new XmlToOimMapper(taxo)
-
-    val report = oimMapper.convertXbrlInstance(xbrlInstance)
-
-    val aspectUniverse = report.aspectUniverse
-
-    val ns = "http://xbrl.org/formula/conformance/example"
-
-    // Simulate formula in 49210-restatementFilter-formula.xml
-
-    // Use (fast) concept name filter for factVarStock, and use the knowledge that it matches only numeric simple facts.
-    // Now we probably have a small sequence of fact values for this fact variable to process.
-
-    val stockFacts = report.findNumericSimpleFactsByName(EName(ns, "stock"))
-
-    // Use (fast) concept name filter for factVarFlow, knowing that it matches only numeric simple facts.
-    // Now we probably have a small sequence of fact values for this fact variable to process.
-
-    val flowFacts = report.findNumericSimpleFactsByName(EName(ns, "flow"))
-
-    // Note that implicit filtering is switched off
-
-    // Now use the other 3 filters for factVarStock
-
-    val restatementAxisAspect = TypedDimensionAspect(EName(ns, "restatementAxis"))
-
-    val resultFacts: immutable.IndexedSeq[NumericSimpleFact] =
-      for {
-        stockFact <- stockFacts
-        flowFact <- flowFacts
-
-        if flowFact.periodAspectValue.isFiniteDuration &&
-          stockFact.periodAspectValue.isInstant &&
-          flowFact.periodAspectValue.asTimeInterval.start == stockFact.periodAspectValue.asTimeInterval.end
-
-        if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension).map(_.member).exists(_.nonEmpty)
-        if stockFact.findTypedDimensionAspectValue(restatementAxisAspect.dimension)
-          .map(v => LocalTimeInterval.fromLocalDate(LocalDate.parse(v.member.value.toString))).contains(
-            flowFact.periodAspectValue.asTimeInterval.atEnd)
-
-        uncoveredAspects = aspectUniverse.diff(Set(ConceptAspect, PeriodAspect, restatementAxisAspect))
-        if stockFact.aspectValueSet.filteringAspects(uncoveredAspects) ==
-          flowFact.aspectValueSet.filteringAspects(uncoveredAspects)
-      } yield {
-        NumericSimpleFact.from(
-          None,
-          stockFact.aspectValueSet
-            .withPeriod(flowFact.periodAspectValue.asTimeInterval.atEnd),
-          Some(NumericValue(
-            stockFact.factValueOption.get.asBigDecimal +
-              flowFact.factValueOption.get.asBigDecimal)),
-          FiniteAccuracy(0))
-      }
-
-    assertResult(2) {
-      resultFacts.size
-    }
-    assertResult(List(EName(ns, "stock"), EName(ns, "stock"))) {
-      resultFacts.map(_.conceptName)
-    }
-    assertResult(List(BigDecimal(145), BigDecimal(169))) {
-      resultFacts.map(_.factValueOption.map(_.asBigDecimal).getOrElse(BigDecimal(0)))
-    }
-    assertResult(List(Set(EName(Namespaces.XbrliNamespace, "pure")), Set(EName(Namespaces.XbrliNamespace, "pure")))) {
-      resultFacts.map(_.unitAspectValue.numerators)
-    }
-
-    val expectedResultFacts =
-      List(
-        NumericSimpleFact.from(
-          None,
-          AspectValueSet.Empty
-            .withConcept(EName(ns, "stock"))
-            .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "01")
-            .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 6, 30)))
-            .withUnit(Set(EName(Namespaces.XbrliNamespace, "pure")))
-            .withTypedDimension(restatementAxisAspect.dimension, StringValue(LocalDate.of(2007, 6, 30).toString)),
-          Some(NumericValue(BigDecimal(145))),
-          FiniteAccuracy(0)),
-        NumericSimpleFact.from(
-          None,
-          AspectValueSet.Empty
-            .withConcept(EName(ns, "stock"))
-            .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "01")
-            .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 12, 31)))
-            .withUnit(Set(EName(Namespaces.XbrliNamespace, "pure")))
-            .withTypedDimension(restatementAxisAspect.dimension, StringValue(LocalDate.of(2007, 12, 31).toString)),
-          Some(NumericValue(BigDecimal(169))),
-          FiniteAccuracy(0)))
-
-    assertResult(expectedResultFacts) {
-      resultFacts
     }
   }
 
