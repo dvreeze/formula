@@ -26,6 +26,7 @@ import scala.math.BigDecimal
 
 import org.scalatest.FunSuite
 
+import eu.cdevreeze.tqa.ENames
 import eu.cdevreeze.tqa.Namespaces
 import eu.cdevreeze.tqa.base.relationship.DefaultRelationshipFactory
 import eu.cdevreeze.tqa.base.taxonomy.BasicTaxonomy
@@ -412,6 +413,170 @@ class FormulaSimulationTest extends FunSuite {
     }
   }
 
+  test("test-14020-v-01") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/10000%20Formula/14020-Formula-UseCases-Movement/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("14020-simpleMovement-instance.xml")
+
+    val xbrlInstance: XbrlInstance =
+      XbrlInstanceDocument.build(docBuilder.build(instanceUri)).documentElement
+
+    val taxo =
+      makeTestDts(
+        xbrlInstance.findAllSchemaRefs.map(_.resolvedHref).toSet
+          .union(xbrlInstance.findAllLinkbaseRefs.map(_.resolvedHref).toSet))
+
+    val oimMapper = new XmlToOimMapper(taxo)
+
+    val report = oimMapper.convertXbrlInstance(xbrlInstance)
+
+    val aspectUniverse = report.aspectUniverse
+
+    val ns = "http://xbrl.org/formula/conformance/example"
+
+    // Simulate formula in 14020-simpleMovement-formula.xml
+
+    val uncoveredAspects = aspectUniverse.diff(Set(ConceptAspect, PeriodAspect))
+
+    val beginningBalanceFacts = report.findNumericSimpleFactsByName(EName(ns, "balance"))
+
+    val changesFacts = report.findNumericSimpleFactsByName(EName(ns, "changes"))
+
+    val resultFacts: immutable.IndexedSeq[NumericSimpleFact] =
+      for {
+        beginningBalanceFact <- beginningBalanceFacts
+
+        changesFact <- changesFacts
+        if beginningBalanceFact.aspectValueSet.filteringAspects(uncoveredAspects) ==
+          changesFact.aspectValueSet.filteringAspects(uncoveredAspects)
+
+        if changesFact.periodAspectValue.isFiniteDuration &&
+          beginningBalanceFact.periodAspectValue.isInstant &&
+          changesFact.periodAspectValue.asTimeInterval.start == beginningBalanceFact.periodAspectValue.asTimeInterval.end
+      } yield {
+        NumericSimpleFact.from(
+          None,
+          beginningBalanceFact.aspectValueSet
+            .withPeriod(changesFact.periodAspectValue.asTimeInterval.atEnd),
+          Some(NumericValue(
+            beginningBalanceFact.factValueOption.get.asBigDecimal +
+              changesFact.factValueOption.get.asBigDecimal)),
+          FiniteAccuracy(0))
+      }
+
+    assertResult(3) {
+      resultFacts.size
+    }
+    assertResult(List(EName(ns, "balance"))) {
+      resultFacts.map(_.conceptName).distinct
+    }
+    assertResult(List(BigDecimal(1000), BigDecimal(1400), BigDecimal(1500))) {
+      resultFacts.map(_.factValueOption.map(_.asBigDecimal).getOrElse(BigDecimal(0)))
+    }
+    assertResult(List(Set(EName(Iso4217Namespace, "USD")))) {
+      resultFacts.map(_.unitAspectValue.numerators).distinct
+    }
+
+    val expectedResultFacts =
+      List(
+        NumericSimpleFact.from(
+          None,
+          AspectValueSet.Empty
+            .withConcept(EName(ns, "balance"))
+            .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "01")
+            .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2008, 12, 31)))
+            .withUnit(Set(EName(Iso4217Namespace, "USD"))),
+          Some(NumericValue(BigDecimal(1000))),
+          FiniteAccuracy(0)),
+        NumericSimpleFact.from(
+          None,
+          AspectValueSet.Empty
+            .withConcept(EName(ns, "balance"))
+            .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "01")
+            .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2009, 12, 31)))
+            .withUnit(Set(EName(Iso4217Namespace, "USD"))),
+          Some(NumericValue(BigDecimal(1400))),
+          FiniteAccuracy(0)),
+        NumericSimpleFact.from(
+          None,
+          AspectValueSet.Empty
+            .withConcept(EName(ns, "balance"))
+            .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "01")
+            .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2010, 12, 31)))
+            .withUnit(Set(EName(Iso4217Namespace, "USD"))),
+          Some(NumericValue(BigDecimal(1500))),
+          FiniteAccuracy(0)))
+
+    assertResult(expectedResultFacts) {
+      resultFacts
+    }
+  }
+
+  test("test-22040-v-01") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/20000%20Variables/22040-Variable-Processing-FactVariables/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("22040-hello-world-fvToFv-instance.xml")
+
+    val xbrlInstance: XbrlInstance =
+      XbrlInstanceDocument.build(docBuilder.build(instanceUri)).documentElement
+
+    val taxo =
+      makeTestDts(
+        xbrlInstance.findAllSchemaRefs.map(_.resolvedHref).toSet
+          .union(xbrlInstance.findAllLinkbaseRefs.map(_.resolvedHref).toSet))
+
+    val oimMapper = new XmlToOimMapper(taxo)
+
+    val report = oimMapper.convertXbrlInstance(xbrlInstance)
+
+    val aspectUniverse = report.aspectUniverse
+
+    val ns = "http://xbrl.org/formula/conformance/example"
+
+    // Simulate formula in 22040-hello-world-fvToFv-formula.xml
+
+    val uncoveredAspects = aspectUniverse.diff(Set(ConceptAspect))
+
+    val factVar3Facts = report.findSimpleFactsByName(EName(ns, "c3"))
+
+    val resultFacts: immutable.IndexedSeq[NonNumericSimpleFact] =
+      for {
+        factVar3Fact <- factVar3Facts
+
+        factVar2Fact <- report.findSimpleFactsByName(EName(ns, factVar3Fact.factValueOption.get.value.toString))
+        if factVar3Fact.aspectValueSet.filteringAspects(uncoveredAspects) ==
+          factVar2Fact.aspectValueSet.filteringAspects(uncoveredAspects)
+
+        factVar1Fact <- report.findSimpleFactsByName(EName(ns, factVar2Fact.factValueOption.get.value.toString))
+        if factVar2Fact.aspectValueSet.filteringAspects(uncoveredAspects) ==
+          factVar1Fact.aspectValueSet.filteringAspects(uncoveredAspects)
+      } yield {
+        NonNumericSimpleFact.from(
+          None,
+          factVar1Fact.aspectValueSet,
+          Some(StringValue(
+            factVar1Fact.factValueOption.get.value.toString + " world")))
+      }
+
+    assertResult(1) {
+      resultFacts.size
+    }
+
+    val expectedResultFacts =
+      List(
+        NonNumericSimpleFact.from(
+          None,
+          AspectValueSet.Empty
+            .withConcept(EName(ns, "c1"))
+            .withEntity(URI.create("http://xbrl.org/entity/identification/scheme"), "01")
+            .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 12, 31))),
+          Some(StringValue("hello world"))))
+
+    assertResult(expectedResultFacts) {
+      resultFacts
+    }
+  }
+
   test("test-33210-v-08") {
     val parentDir = URI.create("conformance-formula-2018-09-13/30000%20Assertions/33210-ValueAssertion-Processing/")
     val parentDirUri = dummyUriPrefix.resolve(parentDir)
@@ -453,6 +618,61 @@ class FormulaSimulationTest extends FunSuite {
     }
     assertResult(1) {
       evalResults.filter(Set(true)).size
+    }
+  }
+
+  test("test-42260-v-02") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/40000%20Filters/42260-ConceptFilter-Processing-ConceptSubstitutionGroup/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("42260-conceptSubstitutionGroupFilter-strict-false-qname-item-instance.xml")
+
+    val xbrlInstance: XbrlInstance =
+      XbrlInstanceDocument.build(docBuilder.build(instanceUri)).documentElement
+
+    val taxo =
+      makeTestDts(
+        xbrlInstance.findAllSchemaRefs.map(_.resolvedHref).toSet
+          .union(xbrlInstance.findAllLinkbaseRefs.map(_.resolvedHref).toSet))
+
+    val oimMapper = new XmlToOimMapper(taxo)
+
+    val report = oimMapper.convertXbrlInstance(xbrlInstance)
+
+    val ns = "http://xbrl.org/formula/conformance/example"
+
+    // Simulate formula in 42260-conceptSubstitutionGroupFilter-strict-false-qname-item-formula.xml
+
+    // For speed of filtering, obtain relevant substitution groups only once at the beginning.
+    val itemSubstGroups: Set[EName] =
+      taxo.netSubstitutionGroupMap.substitutionGroupDerivations(ENames.XbrliItemEName) + ENames.XbrliItemEName
+
+    val facts: immutable.IndexedSeq[SimpleFact] =
+      report.findAllSimpleFacts.filter { fact =>
+        val conceptDecl = taxo.getItemDeclaration(fact.conceptName)
+        itemSubstGroups.contains(conceptDecl.substitutionGroupOption.get)
+      }
+
+    val resultFacts: immutable.IndexedSeq[SimpleFact] =
+      for {
+        fact <- facts
+      } yield {
+        fact match {
+          case f: NonNumericSimpleFact =>
+            NonNumericSimpleFact(
+              None,
+              fact.aspectValueSet,
+              fact.factValueOption)
+          case f: NumericSimpleFact =>
+            NumericSimpleFact(
+              None,
+              fact.aspectValueSet,
+              fact.factValueOption,
+              FiniteAccuracy(0))
+        }
+      }
+
+    assertResult(List("a", "b", "a", "b", "a", "b").map(n => EName(ns, n))) {
+      resultFacts.map(_.conceptName)
     }
   }
 
