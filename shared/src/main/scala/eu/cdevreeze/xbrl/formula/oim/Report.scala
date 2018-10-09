@@ -147,6 +147,8 @@ object Report {
     dtsReferences: immutable.IndexedSeq[DtsReference],
     topLevelFacts: immutable.IndexedSeq[Fact]): Report = {
 
+    require(topLevelFacts.forall(_.depth == 0), s"Corrupt report, because not all top level facts have depth 0")
+
     val allFacts: immutable.IndexedSeq[Fact] = {
       topLevelFacts.flatMap {
         case f: SimpleFact => immutable.IndexedSeq(f)

@@ -165,7 +165,7 @@ class FormulaSimulationTest extends FunSuite {
           None,
           n3Fact.aspectValueSet,
           resultValueOption.map(v => NumericValue(v)),
-          FiniteAccuracy(0))
+          Accuracy.Infinity)
       }
 
     val expectedResultFacts =
@@ -178,7 +178,7 @@ class FormulaSimulationTest extends FunSuite {
             .withPeriod(LocalTimeInterval.fromLocalDate(LocalDate.of(2007, 12, 31)))
             .withUnit(Set(EName(Namespaces.XbrliNamespace, "pure"))),
           None,
-          FiniteAccuracy(0)))
+          Accuracy.Infinity))
 
     assertResult(expectedResultFacts) {
       resultFacts

@@ -54,6 +54,24 @@ sealed trait Fact {
       .getOrElse(sys.error(s"Missing tuple order aspect in fact with ID ${idOption.getOrElse("")}"))
   }
 
+  /**
+   * Creates an adapted copy of this fact that is top-level. That is, calls `moveUp(depth)`.
+   */
+  def makeTopLevel: Fact
+
+  /**
+   * Returns the "tuple parent" depth, which is 0 for top-level facts.
+   */
+  final def depth: Int = {
+    aspectValueSet.depth
+  }
+
+  /**
+   * Moves up this fact the given number of positions. If positions equals the depth,
+   * this fact is made top-level. If positions is greater than the depth, an exception is thrown.
+   */
+  def moveUp(positions: Int): Fact
+
   // TODO Footnotes
 }
 
@@ -129,7 +147,16 @@ sealed trait SimpleFact extends Fact {
 final case class NonNumericSimpleFact(
   idOption: Option[String],
   aspectValueSet: AspectValueSet,
-  factValueOption: Option[SimpleValue]) extends SimpleFact
+  factValueOption: Option[SimpleValue]) extends SimpleFact {
+
+  def makeTopLevel: NonNumericSimpleFact = {
+    moveUp(depth)
+  }
+
+  def moveUp(positions: Int): NonNumericSimpleFact = {
+    copy(aspectValueSet = this.aspectValueSet.moveUp(positions))
+  }
+}
 
 final case class NumericSimpleFact(
   idOption: Option[String],
@@ -141,6 +168,14 @@ final case class NumericSimpleFact(
     aspectValueSet.findUnitAspectValue
       .getOrElse(sys.error(s"Missing unit aspect in fact with ID ${idOption.getOrElse("")}"))
   }
+
+  def makeTopLevel: NumericSimpleFact = {
+    moveUp(depth)
+  }
+
+  def moveUp(positions: Int): NumericSimpleFact = {
+    copy(aspectValueSet = this.aspectValueSet.moveUp(positions))
+  }
 }
 
 /**
@@ -151,6 +186,10 @@ final case class TupleFact(
   idOption: Option[String],
   aspectValueSet: AspectValueSet,
   childFacts: immutable.IndexedSeq[Fact]) extends Fact {
+
+  require(
+    childFacts.forall(_.tupleParentAspectValue.parentPath.parentPath == this.tupleParentAspectValue.parentPath),
+    s"Corrupt tuple fact, with inconsistencies between the tuple parent aspect value of this fact and its child facts")
 
   def findAllDescendantFacts: immutable.IndexedSeq[Fact] = {
     childFacts.flatMap {
@@ -204,6 +243,16 @@ final case class TupleFact(
     findDescendantFact(relativePath, orderInParentTuple).getOrElse {
       sys.error(s"No fact found at path $relativePath and 0-based order in parent $orderInParentTuple")
     }
+  }
+
+  def makeTopLevel: TupleFact = {
+    moveUp(depth)
+  }
+
+  def moveUp(positions: Int): TupleFact = {
+    copy(
+      aspectValueSet = this.aspectValueSet.moveUp(positions),
+      childFacts = this.childFacts.map(_.moveUp(positions)))
   }
 }
 

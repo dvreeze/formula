@@ -51,6 +51,13 @@ final class AspectValueSet private (val aspectValueMap: Map[Aspect, AspectValue]
     findAspectValue(aspect).getOrElse(sys.error(s"Missing aspect value for aspect $aspect"))
   }
 
+  /**
+   * Returns the "tuple parent" depth, which is 0 for top-level.
+   */
+  def depth: Int = {
+    findTupleParentAspectValue.map(_.depth).getOrElse(0)
+  }
+
   // Equality and hashCode, and toString
 
   override def equals(other: Any): Boolean = {
@@ -205,6 +212,24 @@ final class AspectValueSet private (val aspectValueMap: Map[Aspect, AspectValue]
 
   def makeTopLevel: AspectValueSet = {
     withTupleParent(TupleParentAspectValue.Empty, TupleOrderAspectValue.Empty)
+  }
+
+  /**
+   * Moves up the tuple parent path the given number of positions. If positions equals the depth,
+   * the tuple parent aspect is made top-level. If positions is greater than the depth, an exception is thrown.
+   */
+  def moveUp(positions: Int): AspectValueSet = {
+    require(positions <= depth, s"We cannot move up $positions positions, because the depth is $depth")
+
+    if (positions == depth) {
+      makeTopLevel
+    } else {
+      assert(positions < depth)
+
+      withTupleParent(
+        findTupleParentAspectValue.getOrElse(TupleParentAspectValue.Empty).moveUp(positions),
+        findTupleOrderAspectValue.getOrElse(TupleOrderAspectValue.Empty))
+    }
   }
 
   def withLanguage(aspectValue: LanguageAspectValue): AspectValueSet = {

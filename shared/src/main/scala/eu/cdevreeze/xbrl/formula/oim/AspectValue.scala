@@ -96,6 +96,23 @@ final case class TupleParentAspectValue(parentPath: Path) extends CoreAspectValu
   type AspectType = TupleParentAspect.type
 
   def aspect: AspectType = TupleParentAspect
+
+  /**
+   * Returns the "tuple parent" depth, which is 0 for top-level.
+   */
+  def depth: Int = {
+    parentPath.entries.size
+  }
+
+  /**
+   * Returns an adapted copy by moving up the parent path the given number of positions. If positions equals the depth,
+   * the tuple parent aspect is made top-level. If positions is greater than the depth, an exception is thrown.
+   */
+  def moveUp(positions: Int): TupleParentAspectValue = {
+    require(positions <= depth, s"We cannot move up $positions positions, because the depth is $depth")
+
+    TupleParentAspectValue(Path(parentPath.entries.drop(positions)))
+  }
 }
 
 /**
