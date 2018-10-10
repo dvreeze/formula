@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eu.cdevreeze.xbrl.formula.xmlmapping
+package eu.cdevreeze.xbrl.formula.simulateformula
 
 import java.io.File
 import java.net.URI
@@ -40,6 +40,7 @@ import eu.cdevreeze.tqa.instance.XbrlInstance
 import eu.cdevreeze.tqa.instance.XbrlInstanceDocument
 import eu.cdevreeze.yaidom.core.EName
 import eu.cdevreeze.xbrl.formula.oim._
+import eu.cdevreeze.xbrl.formula.xmlmapping.XmlToOimMapper
 import net.sf.saxon.s9api.Processor
 
 /**

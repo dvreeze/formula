@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-package eu.cdevreeze.xbrl.formula.xmlmapping
+package eu.cdevreeze.xbrl.formula.simulateformula
 
 import java.io.File
 import java.net.URI
@@ -40,6 +40,8 @@ import eu.cdevreeze.tqa.instance.XbrlInstanceDocument
 import eu.cdevreeze.yaidom.core.EName
 import eu.cdevreeze.yaidom.core.QName
 import eu.cdevreeze.xbrl.formula.oim._
+import eu.cdevreeze.xbrl.formula.varset._
+import eu.cdevreeze.xbrl.formula.xmlmapping.XmlToOimMapper
 import net.sf.saxon.s9api.Processor
 
 /**
@@ -283,6 +285,112 @@ class FormulaSimulationConformanceTest extends FunSuite {
     }
   }
 
+  test("test-12061-v-08") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/10000%20Formula/12061-Formula-Processing-DimensionRules/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("12061-seg-typed-openHc-instance.xml")
+
+    testInstanceCreatingFormula(instanceUri, instanceUri.resolve("12061-seg-typed-openHc-result.xml")) { (report, taxo) =>
+      // Simulate formula in 12061-source-dim-copy-formula.xml
+
+      val facts = report.findAllSimpleFacts
+
+      val resultFacts: immutable.IndexedSeq[SimpleFact] =
+        for {
+          fact <- facts
+        } yield {
+          fact match {
+            case f: NonNumericSimpleFact =>
+              NonNumericSimpleFact(
+                None,
+                f.aspectValueSet,
+                f.factValueOption).makeTopLevel
+            case f: NumericSimpleFact =>
+              NumericSimpleFact(
+                None,
+                f.aspectValueSet,
+                f.factValueOption,
+                f.accuracy).makeTopLevel
+          }
+        }
+
+      Report.build(report.findAllDtsReferences, resultFacts)
+    }
+  }
+
+  test("test-12061-v-24") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/10000%20Formula/12061-Formula-Processing-DimensionRules/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("12061-create-dim-to-either-seg-or-scen-instance.xml")
+
+    testInstanceCreatingFormula(instanceUri, instanceUri.resolve("12061-create-dim-to-either-seg-or-scen-result.xml")) { (report, taxo) =>
+      // Simulate formula in 12061-create-dim-to-either-seg-or-scen-formula.xml
+
+      val facts = report.findAllSimpleFacts
+
+      val resultFacts: immutable.IndexedSeq[SimpleFact] =
+        for {
+          fact <- facts
+        } yield {
+          fact match {
+            case f: NonNumericSimpleFact =>
+              NonNumericSimpleFact(
+                None,
+                f.aspectValueSet
+                  .withExplicitDimension(EName(ns, "ExplDim1"), EName(ns, "ExplDim1Mbr1")),
+                f.factValueOption).makeTopLevel
+            case f: NumericSimpleFact =>
+              NumericSimpleFact(
+                None,
+                f.aspectValueSet
+                  .withExplicitDimension(EName(ns, "ExplDim1"), EName(ns, "ExplDim1Mbr1")),
+                f.factValueOption,
+                f.accuracy).makeTopLevel
+          }
+        }
+
+      Report.build(report.findAllDtsReferences, resultFacts)
+    }
+  }
+
+  test("test-14010-v-01") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/10000%20Formula/14010-Formula-UseCases-BasicCalculation/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("14010-computeAssets-instance.xml")
+
+    testInstanceCreatingFormula(instanceUri, instanceUri.resolve("14010-computeAssets-result.xml")) { (report, taxo) =>
+      // Simulate formula in 14010-computeAssets-formula.xml
+
+      val aspectUniverse = report.aspectUniverse
+
+      val uncoveredAspects = aspectUniverse.diff(Set(ConceptAspect))
+
+      val liabilitiesFacts = report.findNumericSimpleFactsByName(EName(ns, "liabilities"))
+
+      val equityFacts = report.findNumericSimpleFactsByName(EName(ns, "equity"))
+
+      val resultFacts: immutable.IndexedSeq[NumericSimpleFact] =
+        for {
+          liabilitiesFact <- liabilitiesFacts
+
+          equityFact <- equityFacts
+          if liabilitiesFact.aspectValueSet.filteringAspects(uncoveredAspects) ==
+            equityFact.aspectValueSet.filteringAspects(uncoveredAspects)
+        } yield {
+          NumericSimpleFact.from(
+            None,
+            liabilitiesFact.aspectValueSet
+              .withConcept(EName(ns, "assets")),
+            Some(NumericValue(
+              liabilitiesFact.factValueOption.get.asBigDecimal +
+                equityFact.factValueOption.get.asBigDecimal)),
+            FiniteAccuracy(0)).makeTopLevel
+        }
+
+      Report.build(report.findAllDtsReferences, resultFacts)
+    }
+  }
+
   test("test-14020-v-01") {
     val parentDir = URI.create("conformance-formula-2018-09-13/10000%20Formula/14020-Formula-UseCases-Movement/")
     val parentDirUri = dummyUriPrefix.resolve(parentDir)
@@ -362,6 +470,51 @@ class FormulaSimulationConformanceTest extends FunSuite {
     }
   }
 
+  test("test-22180-v-03") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/20000%20Variables/22180-Variable-Processing-BindEmpty/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("22180-empty-with-fallback-instance.xml")
+
+    testInstanceCreatingFormula(instanceUri, instanceUri.resolve("22180-empty-with-fallback-result.xml")) { (report, taxo) =>
+      // Simulate formula in 22180-empty-with-fallback-formula.xml
+
+      val aspectUniverse = report.aspectUniverse
+
+      val uncoveredAspects = aspectUniverse.diff(Set(ConceptAspect))
+
+      val factVar1Facts = report.findSimpleFactsByName(EName(ns, "n1"))
+      val factVar2Facts = report.findSimpleFactsByName(EName(ns, "n2"))
+      val factVar2FactHolders =
+        factVar2Facts.map(f => FactHolder(f)) :+ NonSeqFallbackValueHolder(NumericValue(BigDecimal(3007)))
+
+      val resultFacts: immutable.IndexedSeq[SimpleFact] =
+        for {
+          factVar1Fact <- factVar1Facts
+
+          factVar2FactHolder <- factVar2FactHolders
+          if factVar2FactHolder.asFactOption.forall { f =>
+            f.aspectValueSet.filteringAspects(uncoveredAspects) == factVar1Fact.aspectValueSet.filteringAspects(uncoveredAspects)
+          }
+        } yield {
+          factVar1Fact match {
+            case f: NonNumericSimpleFact =>
+              NonNumericSimpleFact(
+                None,
+                f.aspectValueSet,
+                Some(factVar2FactHolder.value)).makeTopLevel
+            case f: NumericSimpleFact =>
+              NumericSimpleFact(
+                None,
+                f.aspectValueSet,
+                Some(factVar2FactHolder.value),
+                FiniteAccuracy(0)).makeTopLevel
+          }
+        }
+
+      Report.build(report.findAllDtsReferences, resultFacts)
+    }
+  }
+
   test("test-33210-v-08") {
     val parentDir = URI.create("conformance-formula-2018-09-13/30000%20Assertions/33210-ValueAssertion-Processing/")
     val parentDirUri = dummyUriPrefix.resolve(parentDir)
@@ -420,13 +573,13 @@ class FormulaSimulationConformanceTest extends FunSuite {
               case f: NonNumericSimpleFact =>
                 NonNumericSimpleFact(
                   None,
-                  fact.aspectValueSet,
-                  fact.factValueOption).makeTopLevel
+                  f.aspectValueSet,
+                  f.factValueOption).makeTopLevel
               case f: NumericSimpleFact =>
                 NumericSimpleFact(
                   None,
-                  fact.aspectValueSet,
-                  fact.factValueOption,
+                  f.aspectValueSet,
+                  f.factValueOption,
                   FiniteAccuracy(0)).makeTopLevel
             }
           }
@@ -528,6 +681,88 @@ class FormulaSimulationConformanceTest extends FunSuite {
             Some(NumericValue(
               stockFact.factValueOption.get.asBigDecimal +
                 flowFact.factValueOption.get.asBigDecimal)),
+            FiniteAccuracy(0)).makeTopLevel
+        }
+
+      Report.build(report.findAllDtsReferences, resultFacts)
+    }
+  }
+
+  test("test-61000-v-01") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/60000%20Extensions/61000%20AspectCoverFilter-Processing/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("string-numeric-unit-cover-instance.xml")
+
+    testInstanceCreatingFormula(instanceUri, instanceUri.resolve("string-numeric-unit-cover-result.xml")) { (report, taxo) =>
+      // Simulate formula in string-numeric-unit-cover-formula.xml
+
+      val aspectUniverse = report.aspectUniverse
+
+      val uncoveredAspects =
+        aspectUniverse.filterNot(_.isInstanceOf[DimensionAspect]).diff(Set(ConceptAspect, UnitAspect))
+
+      val fact1Facts = report.findSimpleFactsByName(EName(ns, "c1"))
+      val fact2Facts = report.findNumericSimpleFactsByName(EName(ns, "n1"))
+
+      val resultFacts: immutable.IndexedSeq[SimpleFact] =
+        for {
+          fact1Fact <- fact1Facts
+
+          fact2Fact <- fact2Facts
+          if fact1Fact.aspectValueSet.filteringAspects(uncoveredAspects) ==
+            fact2Fact.aspectValueSet.filteringAspects(uncoveredAspects)
+        } yield {
+          NonNumericSimpleFact.from(
+            None,
+            fact1Fact.aspectValueSet,
+            Some(StringValue(
+              fact1Fact.factValueOption.get.value.toString + fact2Fact.factValueOption.get.value.toString))).makeTopLevel
+        }
+
+      Report.build(report.findAllDtsReferences, resultFacts)
+    }
+  }
+
+  test("test-61100-v-01") {
+    val parentDir = URI.create("conformance-formula-2018-09-13/60000%20Extensions/61100%20ConceptRelationsFilter-Processing/")
+    val parentDirUri = dummyUriPrefix.resolve(parentDir)
+    val instanceUri: URI = parentDirUri.resolve("nav-test-child-instance.xml")
+
+    testInstanceCreatingFormula(instanceUri, instanceUri.resolve("nav-test-child-result.xml")) { (report, taxo) =>
+      // Simulate formula in nav-test-child-formula.xml
+
+      val aspectUniverse = report.aspectUniverse
+
+      val uncoveredAspects =
+        aspectUniverse.filterNot(_.isInstanceOf[DimensionAspect]).diff(Set(ConceptAspect))
+
+      val parentFacts = report.findAllNumericSimpleFacts
+
+      val childFactSeqs: Map[AspectValueSet, immutable.IndexedSeq[NumericSimpleFact]] =
+        report.findAllNumericSimpleFacts
+          .groupBy(_.aspectValueSet.filteringAspects(uncoveredAspects))
+
+      val resultFacts: immutable.IndexedSeq[NumericSimpleFact] =
+        for {
+          parentFact <- parentFacts
+
+          (aspectValueSet, childFactSeq) <- childFactSeqs
+          if parentFact.aspectValueSet.filteringAspects(uncoveredAspects) ==
+            aspectValueSet.filteringAspects(uncoveredAspects)
+
+          relationships = taxo.filterOutgoingInterConceptRelationships(parentFact.conceptName) { rel =>
+            rel.elr == "http://abc.com/role/link1" && rel.arcrole == "http://abc.com/arcrole/def-test"
+          }
+          targetConcepts = relationships.map(_.targetConceptEName).toSet
+
+          filteredChildFactSeq = childFactSeq.filter(fact => targetConcepts.contains(fact.conceptName))
+          if filteredChildFactSeq.nonEmpty
+        } yield {
+          NumericSimpleFact.from(
+            None,
+            parentFact.aspectValueSet,
+            Some(NumericValue(
+              filteredChildFactSeq.flatMap(_.factValueOption).map(_.asBigDecimal).sum)),
             FiniteAccuracy(0)).makeTopLevel
         }
 
