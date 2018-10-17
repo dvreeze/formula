@@ -20,6 +20,7 @@ import java.net.URI
 import java.time.LocalDateTime
 import java.time.ZonedDateTime
 
+import scala.collection.immutable
 import scala.math.floor
 import scala.math.log10
 
@@ -28,7 +29,7 @@ import eu.cdevreeze.tqa.ENames
 import eu.cdevreeze.tqa.Namespaces
 import eu.cdevreeze.tqa.instance
 import eu.cdevreeze.yaidom.core.EName
-import eu.cdevreeze.yaidom.queryapi.BackingNodes
+import eu.cdevreeze.yaidom.core.Path
 import eu.cdevreeze.xbrl.formula.oim.Accuracy
 import eu.cdevreeze.xbrl.formula.oim.ArcroleReference
 import eu.cdevreeze.xbrl.formula.oim.AspectValue
@@ -87,39 +88,139 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
     val dtsReferences = schemaRefs ++ linkbaseRefs ++ roleRefs ++ arcroleRefs
 
-    val topLevelFacts = xbrlInstance.findAllTopLevelFacts.map(f => convertFact(f, xbrlInstance))
+    val aspectValueSetsByContextId: Map[String, Set[AspectValue]] =
+      xbrlInstance.findAllContexts
+        .groupBy(_.id)
+        .mapValues(ctxs => extractAspectValuesFromContext(ctxs.head))
+
+    val aspectValueSetsByUnitId: Map[String, Set[AspectValue]] =
+      xbrlInstance.findAllUnits
+        .groupBy(_.id)
+        .mapValues(ctxs => Set(extractUnitAspectValueFromUnit(ctxs.head)))
+
+    val langOption = xbrlInstance.attributeOption(ENames.XmlLangEName)
+
+    val topLevelFacts = findAllTopLevelFactsWithPathEntries(xbrlInstance)
+      .map {
+        case (fact, pathEntry) =>
+          createOimFact(
+            fact,
+            Path(immutable.IndexedSeq(pathEntry)),
+            None,
+            langOption,
+            aspectValueSetsByContextId,
+            aspectValueSetsByUnitId)
+      }
 
     Report.build(dtsReferences, topLevelFacts)
   }
 
-  def convertFact(fact: instance.Fact, xbrlInstance: instance.XbrlInstance): Fact = {
+  // TODO Footnotes
+
+  // Private methods
+
+  private def convertSchemaRef(schemaRef: instance.SchemaRef): SchemaReference = {
+    SchemaReference(schemaRef.resolvedHref)
+  }
+
+  private def convertLinkbaseRef(schemaRef: instance.LinkbaseRef): LinkbaseReference = {
+    LinkbaseReference(schemaRef.resolvedHref)
+  }
+
+  private def convertRoleRef(schemaRef: instance.RoleRef): RoleReference = {
+    RoleReference(schemaRef.resolvedHref)
+  }
+
+  private def convertArcroleRef(schemaRef: instance.ArcroleRef): ArcroleReference = {
+    ArcroleReference(schemaRef.resolvedHref)
+  }
+
+  private def createOimFact(
+    fact: instance.Fact,
+    ownPath: Path,
+    zeroBasedOrderOption: Option[Int],
+    inheritedLanguageOption: Option[String],
+    aspectValueSetsByContextId: Map[String, Set[AspectValue]],
+    aspectValueSetsByUnitId: Map[String, Set[AspectValue]]): Fact = {
+
     fact match {
-      case itemFact: instance.ItemFact => convertItemFact(itemFact, xbrlInstance)
-      case tupleFact: instance.TupleFact => convertTupleFact(tupleFact, xbrlInstance)
+      case itemFact: instance.ItemFact =>
+        createOimSimpleFact(
+          itemFact,
+          ownPath,
+          zeroBasedOrderOption,
+          inheritedLanguageOption,
+          aspectValueSetsByContextId,
+          aspectValueSetsByUnitId)
+      case tupleFact: instance.TupleFact =>
+        createOimTupleFact(
+          tupleFact,
+          ownPath,
+          zeroBasedOrderOption,
+          inheritedLanguageOption,
+          aspectValueSetsByContextId,
+          aspectValueSetsByUnitId)
     }
   }
 
-  def convertItemFact(fact: instance.ItemFact, xbrlInstance: instance.XbrlInstance): SimpleFact = {
+  private def createOimSimpleFact(
+    fact: instance.ItemFact,
+    ownPath: Path,
+    zeroBasedOrderOption: Option[Int],
+    inheritedLanguageOption: Option[String],
+    aspectValueSetsByContextId: Map[String, Set[AspectValue]],
+    aspectValueSetsByUnitId: Map[String, Set[AspectValue]]): SimpleFact = {
+
     fact match {
       case nonNumericItemFact: instance.NonNumericItemFact =>
-        convertNonNumericItemFact(nonNumericItemFact, xbrlInstance)
+        createOimNonNumericSimpleFact(
+          nonNumericItemFact,
+          ownPath,
+          zeroBasedOrderOption,
+          inheritedLanguageOption,
+          aspectValueSetsByContextId,
+          aspectValueSetsByUnitId)
       case numericItemFact: instance.NumericItemFact =>
-        convertNumericItemFact(numericItemFact, xbrlInstance)
+        createOimNumericSimpleFact(
+          numericItemFact,
+          ownPath,
+          zeroBasedOrderOption,
+          inheritedLanguageOption,
+          aspectValueSetsByContextId,
+          aspectValueSetsByUnitId)
     }
   }
 
-  def convertTupleFact(fact: instance.TupleFact, xbrlInstance: instance.XbrlInstance): TupleFact = {
+  private def createOimTupleFact(
+    fact: instance.TupleFact,
+    ownPath: Path,
+    zeroBasedOrderOption: Option[Int],
+    inheritedLanguageOption: Option[String],
+    aspectValueSetsByContextId: Map[String, Set[AspectValue]],
+    aspectValueSetsByUnitId: Map[String, Set[AspectValue]]): TupleFact = {
+
     val idOption = fact.attributeOption(ENames.IdEName)
 
-    val conceptAspectValue = extractConceptAspectValueFromFact(fact)
-    val tupleParentAspectValue = extractTupleParentAspectValueFromFact(fact)
-    val tupleOrderAspectValue = extractTupleOrderAspectValueFromFact(fact)
+    val conceptAspectValue = ConceptAspectValue(fact.resolvedName)
+    val tupleParentAspectValue = TupleParentAspectValue(ownPath.parentPath)
+    val tupleOrderAspectValue = TupleOrderAspectValue(zeroBasedOrderOption)
 
     val aspectValues = Set[AspectValue](conceptAspectValue, tupleParentAspectValue, tupleOrderAspectValue)
 
-    // Recursive calls into convertFact
+    val langOption = fact.attributeOption(ENames.XmlLangEName).orElse(inheritedLanguageOption)
 
-    val childFacts = fact.findAllChildFacts.map(f => convertFact(f, xbrlInstance))
+    // Recursive calls into createOimFact
+
+    val childFacts = findAllChildFactsWithPathEntries(fact).zipWithIndex.map {
+      case ((childFact, pathEntry), idx) =>
+        createOimFact(
+          childFact,
+          ownPath.append(pathEntry),
+          Some(idx),
+          langOption,
+          aspectValueSetsByContextId,
+          aspectValueSetsByUnitId)
+    }
 
     TupleFact.from(
       idOption,
@@ -127,17 +228,25 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
       childFacts)
   }
 
-  def convertNonNumericItemFact(fact: instance.NonNumericItemFact, xbrlInstance: instance.XbrlInstance): NonNumericSimpleFact = {
+  private def createOimNonNumericSimpleFact(
+    fact: instance.NonNumericItemFact,
+    ownPath: Path,
+    zeroBasedOrderOption: Option[Int],
+    inheritedLanguageOption: Option[String],
+    aspectValueSetsByContextId: Map[String, Set[AspectValue]],
+    aspectValueSetsByUnitId: Map[String, Set[AspectValue]]): NonNumericSimpleFact = {
+
     val idOption = fact.attributeOption(ENames.IdEName)
 
-    val context = xbrlInstance.getContextById(fact.contextRef)
+    val aspectValuesFromContext =
+      aspectValueSetsByContextId.getOrElse(fact.contextRef, sys.error(s"Missing context with ID '${fact.contextRef}'"))
 
-    val aspectValuesFromContext = extractAspectValuesFromContext(context)
+    val conceptAspectValue = ConceptAspectValue(fact.resolvedName)
+    val tupleParentAspectValue = TupleParentAspectValue(ownPath.parentPath)
+    val tupleOrderAspectValue = TupleOrderAspectValue(zeroBasedOrderOption)
 
-    val conceptAspectValue = extractConceptAspectValueFromFact(fact)
-    val tupleParentAspectValue = extractTupleParentAspectValueFromFact(fact)
-    val tupleOrderAspectValue = extractTupleOrderAspectValueFromFact(fact)
-    val languageAspectValue = extractLanguageAspectValueFromItemFact(fact)
+    val langOption = fact.attributeOption(ENames.XmlLangEName).orElse(inheritedLanguageOption)
+    val languageAspectValue = LanguageAspectValue(langOption)
 
     val aspectValues =
       Set[AspectValue](
@@ -154,27 +263,33 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
       factValueOption)
   }
 
-  def convertNumericItemFact(fact: instance.NumericItemFact, xbrlInstance: instance.XbrlInstance): NumericSimpleFact = {
+  private def createOimNumericSimpleFact(
+    fact: instance.NumericItemFact,
+    ownPath: Path,
+    zeroBasedOrderOption: Option[Int],
+    inheritedLanguageOption: Option[String],
+    aspectValueSetsByContextId: Map[String, Set[AspectValue]],
+    aspectValueSetsByUnitId: Map[String, Set[AspectValue]]): NumericSimpleFact = {
+
     // TODO Require a non-fraction numeric item
 
     val idOption = fact.attributeOption(ENames.IdEName)
 
-    val context = xbrlInstance.getContextById(fact.contextRef)
-    val unit = xbrlInstance.getUnitById(fact.unitRef)
+    val aspectValuesFromContext =
+      aspectValueSetsByContextId.getOrElse(fact.contextRef, sys.error(s"Missing context with ID '${fact.contextRef}'"))
 
-    val aspectValuesFromContext = extractAspectValuesFromContext(context)
-    val unitAspectValue = extractUnitAspectValueFromUnit(unit)
+    val aspectValuesFromUnit =
+      aspectValueSetsByUnitId.getOrElse(fact.unitRef, sys.error(s"Missing unit with ID '${fact.unitRef}'"))
 
-    val conceptAspectValue = extractConceptAspectValueFromFact(fact)
-    val tupleParentAspectValue = extractTupleParentAspectValueFromFact(fact)
-    val tupleOrderAspectValue = extractTupleOrderAspectValueFromFact(fact)
+    val conceptAspectValue = ConceptAspectValue(fact.resolvedName)
+    val tupleParentAspectValue = TupleParentAspectValue(ownPath.parentPath)
+    val tupleOrderAspectValue = TupleOrderAspectValue(zeroBasedOrderOption)
 
     val aspectValues =
       Set[AspectValue](
         conceptAspectValue,
         tupleParentAspectValue,
-        tupleOrderAspectValue,
-        unitAspectValue).union(aspectValuesFromContext)
+        tupleOrderAspectValue).union(aspectValuesFromContext).union(aspectValuesFromUnit)
 
     val factValueOption = extractNumericFactValueOption(fact)
 
@@ -187,7 +302,7 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
       accuracy)
   }
 
-  def extractAspectValuesFromContext(context: instance.XbrliContext): Set[AspectValue] = {
+  private def extractAspectValuesFromContext(context: instance.XbrliContext): Set[AspectValue] = {
     val entityAspectValue = extractEntityAspectValueFromContext(context)
     val periodAspectValue = extractPeriodAspectValueFromContext(context)
 
@@ -199,25 +314,21 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
       .union(typedDimensionAspectValues.collect { case av: AspectValue => av })
   }
 
-  def extractUnitAspectValueFromUnit(unit: instance.XbrliUnit): UnitAspectValue = {
+  private def extractUnitAspectValueFromUnit(unit: instance.XbrliUnit): UnitAspectValue = {
     val numerators = unit.numeratorMeasures
     val denominators = unit.denominatorMeasures
 
     UnitAspectValue(numerators.toSet, denominators.toSet)
   }
 
-  def extractConceptAspectValueFromFact(fact: instance.Fact): ConceptAspectValue = {
-    ConceptAspectValue(fact.resolvedName)
-  }
-
-  def extractEntityAspectValueFromContext(context: instance.XbrliContext): EntityAspectValue = {
+  private def extractEntityAspectValueFromContext(context: instance.XbrliContext): EntityAspectValue = {
     val scheme = URI.create(context.entity.identifierScheme)
     val identifier = context.entity.identifierValue
 
     EntityAspectValue(scheme, identifier)
   }
 
-  def extractPeriodAspectValueFromContext(context: instance.XbrliContext): PeriodAspectValue = {
+  private def extractPeriodAspectValueFromContext(context: instance.XbrliContext): PeriodAspectValue = {
     val periodValue: PeriodValue =
       context.period match {
         case p: instance.ForeverPeriod =>
@@ -262,7 +373,7 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
 
   // TODO How about default dimensions?
 
-  def extractExplicitDimensionAspectValuesFromContext(context: instance.XbrliContext): Set[ExplicitDimensionAspectValue] = {
+  private def extractExplicitDimensionAspectValuesFromContext(context: instance.XbrliContext): Set[ExplicitDimensionAspectValue] = {
     context.explicitDimensionMembers.toSeq
       .map {
         case (dim, mem) =>
@@ -271,7 +382,7 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
       .toSet
   }
 
-  def extractTypedDimensionAspectValuesFromContext(context: instance.XbrliContext): Set[TypedDimensionAspectValue] = {
+  private def extractTypedDimensionAspectValuesFromContext(context: instance.XbrliContext): Set[TypedDimensionAspectValue] = {
     context.typedDimensionMembers.toSeq
       .map {
         case (dim, mem) =>
@@ -281,60 +392,6 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
       }
       .toSet
   }
-
-  def extractTupleParentAspectValueFromFact(fact: instance.Fact): TupleParentAspectValue = {
-    TupleParentAspectValue(fact.path.parentPath)
-  }
-
-  def extractTupleOrderAspectValueFromFact(fact: instance.Fact): TupleOrderAspectValue = {
-    // Somewhat expensive!
-
-    val path = fact.path
-    val lastPathEntry = path.lastEntry
-
-    val parent = fact.backingElem.parent
-
-    val parentFactOption: Option[BackingNodes.Elem] =
-      if (parent.resolvedName.namespaceUriOption.contains(Namespaces.XbrliNamespace) && parent.localName == "xbrl") {
-        None
-      } else {
-        Some(parent)
-      }
-
-    val zeroBasedOrderOption: Option[Int] =
-      parentFactOption
-        .map(_.findAllChildElemsWithPathEntries.zipWithIndex.find(_._1._2 == lastPathEntry).head._2)
-
-    TupleOrderAspectValue(zeroBasedOrderOption)
-  }
-
-  def extractLanguageAspectValueFromItemFact(fact: instance.ItemFact): LanguageAspectValue = {
-    // Somewhat expensive!
-
-    val langOption = extractOptionalLanguage(fact.backingElem)
-
-    LanguageAspectValue(langOption)
-  }
-
-  def convertSchemaRef(schemaRef: instance.SchemaRef): SchemaReference = {
-    SchemaReference(schemaRef.resolvedHref)
-  }
-
-  def convertLinkbaseRef(schemaRef: instance.LinkbaseRef): LinkbaseReference = {
-    LinkbaseReference(schemaRef.resolvedHref)
-  }
-
-  def convertRoleRef(schemaRef: instance.RoleRef): RoleReference = {
-    RoleReference(schemaRef.resolvedHref)
-  }
-
-  def convertArcroleRef(schemaRef: instance.ArcroleRef): ArcroleReference = {
-    ArcroleReference(schemaRef.resolvedHref)
-  }
-
-  // TODO Footnotes
-
-  // Private methods
 
   private def extractTypedDimensionMember(dimension: EName, memberElem: instance.XbrliElem): SimpleValue = {
     require(
@@ -355,17 +412,6 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
     val memberText = memberElem.text
 
     SimpleValue.parse(memberText, baseTypeOption.getOrElse(ENames.XsStringEName))
-  }
-
-  private def extractOptionalLanguage(elem: BackingNodes.Elem): Option[String] = {
-    val xmlLangOption = elem.attributeOption(ENames.XmlLangEName).map(_.trim)
-
-    xmlLangOption.orElse {
-      val parentOption = elem.parentOption
-
-      // Recursive call
-      parentOption.flatMap(pe => extractOptionalLanguage(pe))
-    }
   }
 
   private def extractNonNumericFactValueOption(itemFact: instance.NonNumericItemFact): Option[SimpleValue] = {
@@ -415,6 +461,32 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
       val simpleValue =
         SimpleValue.parse(rawFactValue, baseTypeOption.getOrElse(ENames.XsStringEName))
       Some(simpleValue)
+    }
+  }
+
+  private def findAllTopLevelFactsWithPathEntries(
+    xbrlInstance: instance.XbrlInstance): immutable.IndexedSeq[(instance.Fact, Path.Entry)] = {
+
+    var entryMap = Map[EName, Int]()
+
+    xbrlInstance.findAllTopLevelFacts.map { fact =>
+      val factName = fact.resolvedName
+      val idx = entryMap.getOrElse(factName, 0)
+      entryMap += factName -> (idx + 1)
+      (fact, Path.Entry(factName, idx))
+    }
+  }
+
+  private def findAllChildFactsWithPathEntries(
+    fact: instance.TupleFact): immutable.IndexedSeq[(instance.Fact, Path.Entry)] = {
+
+    var entryMap = Map[EName, Int]()
+
+    fact.findAllChildFacts.map { fact =>
+      val factName = fact.resolvedName
+      val idx = entryMap.getOrElse(factName, 0)
+      entryMap += factName -> (idx + 1)
+      (fact, Path.Entry(factName, idx))
     }
   }
 
