@@ -17,7 +17,7 @@ lazy val commonSettings = Seq(
   name         := "formula",
   description  := "Lightweight XBRL formula support",
   organization := "eu.cdevreeze.xbrl.formula",
-  version      := "0.2.0-SNAPSHOT",
+  version      := "0.2.0",
 
   scalaVersion       := scalaVer,
   crossScalaVersions := crossScalaVer,
