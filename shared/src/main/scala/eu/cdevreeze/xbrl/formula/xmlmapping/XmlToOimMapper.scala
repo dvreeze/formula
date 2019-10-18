@@ -91,12 +91,12 @@ final class XmlToOimMapper(dts: TaxonomyApi) {
     val aspectValueSetsByContextId: Map[String, Set[AspectValue]] =
       xbrlInstance.findAllContexts
         .groupBy(_.id)
-        .mapValues(ctxs => extractAspectValuesFromContext(ctxs.head))
+        .view.mapValues(ctxs => extractAspectValuesFromContext(ctxs.head)).toMap
 
     val aspectValueSetsByUnitId: Map[String, Set[AspectValue]] =
       xbrlInstance.findAllUnits
         .groupBy(_.id)
-        .mapValues(ctxs => Set(extractUnitAspectValueFromUnit(ctxs.head)))
+        .view.mapValues(ctxs => Set[AspectValue](extractUnitAspectValueFromUnit(ctxs.head))).toMap
 
     val langOption = xbrlInstance.attributeOption(ENames.XmlLangEName)
 

@@ -11,10 +11,12 @@ temp/
 .history
 scalastyle-config.xml
 node_modules/
+.idea/
 
 # /project/
 /project/boot
 /project/project/
 /project/target/
 /project/build/target
+
 

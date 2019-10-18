@@ -25,7 +25,6 @@ import scala.collection.immutable
 import scala.math.BigDecimal
 
 import org.scalatest.FunSuite
-
 import eu.cdevreeze.tqa.ENames
 import eu.cdevreeze.tqa.Namespaces
 import eu.cdevreeze.tqa.base.relationship.DefaultRelationshipFactory
@@ -42,6 +41,7 @@ import eu.cdevreeze.yaidom.core.EName
 import eu.cdevreeze.xbrl.formula.oim._
 import eu.cdevreeze.xbrl.formula.xmlmapping.XmlToOimMapper
 import net.sf.saxon.s9api.Processor
+import org.xml.sax.InputSource
 
 /**
  * Formula simulation test case, using only the OIM model. It uses test data from the XBRL Formula conformance suite.
@@ -808,7 +808,14 @@ class FormulaSimulationTest extends FunSuite {
     val otherRootDir = new File(classOf[FormulaSimulationTest].getResource("/xbrl-and-w3").toURI)
     val zipFile = new File(classOf[FormulaSimulationTest].getResource("/conformance-formula-2018-09-13.zip").toURI)
 
-    val xbrlAndW3UriPartialResolver = PartialUriResolvers.fromLocalMirrorRootDirectory(otherRootDir)
+    val xbrlAndW3UriResolver = UriResolvers.fromLocalMirrorRootDirectory(otherRootDir)
+    val xbrlAndW3UriPartialResolver: URI => Option[InputSource] = { uri =>
+      uri.getHost match {
+        case "www.w3.org" => Some(xbrlAndW3UriResolver(uri))
+        case "www.xbrl.org" => Some(xbrlAndW3UriResolver(uri))
+        case _ => None
+      }
+    }
 
     val catalog =
       SimpleCatalog(

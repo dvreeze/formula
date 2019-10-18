@@ -24,7 +24,6 @@ import java.util.zip.ZipFile
 import scala.math.BigDecimal
 
 import org.scalatest.FunSuite
-
 import eu.cdevreeze.tqa.base.relationship.DefaultRelationshipFactory
 import eu.cdevreeze.tqa.base.taxonomy.BasicTaxonomy
 import eu.cdevreeze.tqa.base.taxonomybuilder.DefaultDtsCollector
@@ -39,6 +38,7 @@ import eu.cdevreeze.yaidom.core.EName
 import eu.cdevreeze.yaidom.core.Path
 import eu.cdevreeze.xbrl.formula.oim._
 import net.sf.saxon.s9api.Processor
+import org.xml.sax.InputSource
 
 /**
  * Aspect value querying test case. It uses test data from the XBRL Formula conformance suite.
@@ -215,7 +215,14 @@ class AspectValueTest extends FunSuite {
     val otherRootDir = new File(classOf[AspectValueTest].getResource("/xbrl-and-w3").toURI)
     val zipFile = new File(classOf[AspectValueTest].getResource("/conformance-formula-2018-09-13.zip").toURI)
 
-    val xbrlAndW3UriPartialResolver = PartialUriResolvers.fromLocalMirrorRootDirectory(otherRootDir)
+    val xbrlAndW3UriResolver = UriResolvers.fromLocalMirrorRootDirectory(otherRootDir)
+    val xbrlAndW3UriPartialResolver: URI => Option[InputSource] = { uri =>
+      uri.getHost match {
+        case "www.w3.org" => Some(xbrlAndW3UriResolver(uri))
+        case "www.xbrl.org" => Some(xbrlAndW3UriResolver(uri))
+        case _ => None
+      }
+    }
 
     val catalog =
       SimpleCatalog(

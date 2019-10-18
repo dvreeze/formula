@@ -5,13 +5,9 @@
 
 import sbtcrossproject.CrossPlugin.autoImport.{crossProject, CrossType}
 
-// Note that 2.12.5 does not work for Scalatest in sbt (https://github.com/scalatest/scalatest/issues/1342).
+val scalaVer = "2.13.1"
 
-val scalaVer = "2.12.6"
-
-// I wanted to cross-build for Scala 2.13.0-M4 as well, but then miss library scalajs-jsjoda-as-java-time
-
-val crossScalaVer = Seq(scalaVer, "2.11.12")
+val crossScalaVer = Seq(scalaVer)
 
 lazy val commonSettings = Seq(
   name         := "formula",
@@ -38,11 +34,11 @@ lazy val commonSettings = Seq(
   pomExtra := pomData,
   pomIncludeRepository := { _ => false },
 
-  libraryDependencies += "eu.cdevreeze.yaidom" %%% "yaidom" % "1.9.0",
+  libraryDependencies += "eu.cdevreeze.yaidom" %%% "yaidom" % "1.10.1",
 
-  libraryDependencies += "eu.cdevreeze.tqa" %%% "tqa" % "0.8.6",
+  libraryDependencies += "eu.cdevreeze.tqa" %%% "tqa" % "0.8.11",
 
-  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.5" % "test"
+  libraryDependencies += "org.scalatest" %%% "scalatest" % "3.0.8" % "test"
 )
 
 lazy val root = project.in(file("."))
@@ -64,25 +60,17 @@ lazy val formula = crossProject(JSPlatform, JVMPlatform)
   .jvmSettings(
     // This is the HE release of Saxon. You may want to use the EE release instead.
 
-    libraryDependencies += "net.sf.saxon" % "Saxon-HE" % "9.8.0-14"
+    libraryDependencies += "net.sf.saxon" % "Saxon-HE" % "9.9.1-5"
   )
   .jsSettings(
     // Do we need this jsEnv?
     jsEnv := new org.scalajs.jsenv.jsdomnodejs.JSDOMNodeJSEnv(),
 
-    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.9.6",
+    libraryDependencies += "org.scala-js" %%% "scalajs-dom" % "0.9.7",
 
-    // It turns out that scalajs-jsjoda is far more complete than scalajs-java-time!
+    libraryDependencies += "io.github.cquiroz" %%% "scala-java-time" % "2.0.0-RC3",
 
-    libraryDependencies += "com.zoepepper" %%% "scalajs-jsjoda" % "1.1.1",
-
-    libraryDependencies += "com.zoepepper" %%% "scalajs-jsjoda-as-java-time" % "1.1.1",
-
-    libraryDependencies += "com.lihaoyi" %%% "scalatags" % "0.6.7" % "optional",
-
-    jsDependencies += "org.webjars.npm" % "js-joda" % "1.3.0" / "dist/js-joda.js" minified "dist/js-joda.min.js",
-
-    jsDependencies += "org.webjars.npm" % "js-joda-timezone" % "1.0.0" / "dist/js-joda-timezone.js" minified "dist/js-joda-timezone.min.js",
+    libraryDependencies += "com.lihaoyi" %%% "scalatags" % "0.7.0" % "optional",
 
     parallelExecution in Test := false
   )

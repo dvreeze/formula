@@ -132,7 +132,7 @@ final class AspectValueSet private (val aspectValueMap: Map[Aspect, AspectValue]
   // Generally available functional updates
 
   def filteringAspects(aspects: Set[Aspect]): AspectValueSet = {
-    new AspectValueSet(this.aspectValueMap.filterKeys(aspects))
+    new AspectValueSet(this.aspectValueMap.view.filterKeys(aspects).toMap)
   }
 
   def withoutAspects(aspects: Set[Aspect]): AspectValueSet = {
@@ -153,7 +153,7 @@ final class AspectValueSet private (val aspectValueMap: Map[Aspect, AspectValue]
    */
   def addIfAbsent(aspectValue: AspectValue): AspectValueSet = {
     new AspectValueSet(
-      Map(aspectValue.aspect -> aspectValue) ++ this.aspectValueMap)
+      Map[Aspect, AspectValue](aspectValue.aspect -> aspectValue).concat(this.aspectValueMap))
   }
 
   /**
@@ -340,7 +340,7 @@ object AspectValueSet {
    * it is undefined which aspect value for that aspect wins.
    */
   def from(aspectValues: Set[AspectValue]): AspectValueSet = {
-    val aspectValueMap = aspectValues.toSeq.groupBy(_.aspect.asInstanceOf[Aspect]).mapValues(_.head)
+    val aspectValueMap = aspectValues.toSeq.groupBy(_.aspect.asInstanceOf[Aspect]).view.mapValues(_.head).toMap
     new AspectValueSet(aspectValueMap)
   }
 }
